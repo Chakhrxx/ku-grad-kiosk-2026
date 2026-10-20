@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+
+/* Tokens from the KU Kiosk Design System (Figma: Interactive - Kaset, Option 1).
+   Each becomes a utility: bg-primary, text-on-primary, rounded-pill, shadow-glow, text-title… */
+@theme {
+  --color-primary: #006c67;
+  --color-primary-pressed: #004744;
+  --color-primary-soft: #e3eeee;
+  --color-on-primary: #e3eeee;
+  --color-on-selected: #fdfdfd;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fdfdfd;
+  --color-surface-tint: #dbf4f3;
+  --color-ink: #000000;
+  --color-ink-muted: #5a5a5a;
+  --color-disabled-label: #b3c6c6;
+  --color-scrim: rgb(0 0 0 / 0.31);
+
+  --font-sans: Inter, 'Noto Sans Thai', system-ui, sans-serif;
+  --text-title: 22px; /* measured on the How to Join and Choose Grades frames */
+  --text-subtitle: 18px;
+  --text-body: 16px;
+  --text-button: 15px;
+  --text-label: 14px;
+
+  --radius-pill: 52px;
+  --radius-modal: 42px;
+  --radius-tile: 20px;
+  --radius-card: 19px;
+
+  --shadow-glow: 0 0 4px 0 #006c67;
+  --shadow-tile: 0 -5px 4px 0 #f8f9fb, 0 2px 8px rgb(0 0 0 / 0.06);
+  --shadow-carousel: 0 0 12px 0 #49923f;
+  /* 3D key: a thick edge below plus a drop shadow; pressed, it sinks onto the edge and gains an inner shade */
+  --shadow-key: 0 5px 0 #b7cfcd, 0 10px 18px rgb(0 60 57 / 0.22);
+  --shadow-key-pressed: 0 1px 0 #b7cfcd, 0 2px 4px rgb(0 60 57 / 0.18), inset 0 2px 5px rgb(0 60 57 / 0.18);
+  --shadow-key-primary: 0 6px 0 #004744, 0 12px 20px rgb(0 60 57 / 0.3);
+  /* 3D card: a thinner edge below, a soft drop shadow and a light catch along the top */
+  --shadow-card: 0 4px 0 #b7cfcd, 0 10px 18px rgb(0 60 57 / 0.16), inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --shadow-key-primary-pressed: 0 1px 0 #004744, 0 2px 4px rgb(0 60 57 / 0.25), inset 0 2px 6px rgb(0 0 0 / 0.25);
+
+  /* Game-style entrance: floats up from below, overshoots a touch, then springs into place */
+  --animate-step-in: step-in 1000ms cubic-bezier(0.22, 1, 0.36, 1) both; /* duration set per card from config.ts */
+  @keyframes step-in {
+    0% {
+      opacity: 0;
+      transform: translateY(70px) scale(0.92);
+    }
+    55% {
+      opacity: 1;
+      transform: translateY(-8px) scale(1.015);
+    }
+    80% {
+      transform: translateY(2px) scale(0.998);
+    }
+    100% {
+      transform: none;
+    }
+  }
+
+  /* Modal entrance: the scrim fades in while the sheet floats up and settles */
+  --animate-scrim-in: scrim-in 350ms ease-out both;
+  @keyframes scrim-in {
+    from {
+      opacity: 0;
+    }
+  }
+  --animate-sheet-in: sheet-in 550ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(60px) scale(0.94);
+    }
+  }
+
+  /* Game-style word entrance: bursts in oversized, settles, then a playful wiggle */
+  --animate-pop-in: pop-in 900ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  @keyframes pop-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.3) rotate(-8deg);
+    }
+    45% {
+      opacity: 1;
+      transform: scale(1.18) rotate(3deg);
+    }
+    65% {
+      transform: scale(0.95) rotate(-2deg);
+    }
+    82% {
+      transform: scale(1.03) rotate(1deg);
+    }
+    100% {
+      transform: none;
+    }
+  }
+
+  /* Waiting: a slow breath in and out */
+  --animate-breathe: breathe 1.6s ease-in-out infinite;
+  @keyframes breathe {
+    50% {
+      transform: scale(1.05);
+      opacity: 0.7;
+    }
+  }
+
+  /* Calls for a tap: a ring that swells out from the button and fades */
+  --animate-call: call 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  @keyframes call {
+    0% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(1.6);
+      opacity: 0;
+    }
+  }
+
+  /* A button that just became available pops once to draw the eye */
+  --animate-pop: pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  @keyframes pop {
+    0% {
+      transform: scale(0.9);
+    }
+    60% {
+      transform: scale(1.06);
+    }
+  }
+}
+
+/* Screen background measured from the Figma home frame; the wave lines are drawn on top by WaveBackground. */
+@utility bg-kiosk {
+  background: linear-gradient(
+    #ffffff 11%,
+    #ebf3f3 23%,
+    #d2e5e4 39%,
+    #c1dbda 50%,
+    #a0c8c7 70%,
+    #88bab8 86%,
+    #78b0ae 100%
+  );
+}
+
+@layer base {
+  * {
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button {
+    cursor: pointer;
+  }
+  img {
+    -webkit-user-drag: none;
+  }
+}

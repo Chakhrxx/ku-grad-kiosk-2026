@@ -1,0 +1,110 @@
+{
+  "levels": [
+    {
+      "id": "bachelor",
+      "th": "บัณฑิต",
+      "en": "Bachelor's"
+    },
+    {
+      "id": "master",
+      "th": "มหาบัณฑิต",
+      "en": "Master's"
+    },
+    {
+      "id": "doctoral",
+      "th": "ดุษฎีบัณฑิต",
+      "en": "Doctoral"
+    },
+    {
+      "id": "others",
+      "th": "อื่นๆ",
+      "en": "Others"
+    }
+  ],
+  "faculties": [
+    {
+      "id": "agriculture",
+      "th": "คณะเกษตร",
+      "en": "Faculty of Agriculture"
+    },
+    {
+      "id": "sports-science",
+      "th": "คณะวิทยาศาสตร์การกีฬา",
+      "en": "Faculty of Sports Science"
+    },
+    {
+      "id": "fisheries",
+      "th": "คณะประมง",
+      "en": "Faculty of Fisheries"
+    },
+    {
+      "id": "veterinary-medicine",
+      "th": "คณะสัตวแพทยศาสตร์",
+      "en": "Faculty of Veterinary Medicine"
+    },
+    {
+      "id": "engineering",
+      "th": "คณะวิศวกรรมศาสตร์",
+      "en": "Faculty of Engineering"
+    },
+    {
+      "id": "environment",
+      "th": "คณะสิ่งแวดล้อม",
+      "en": "Faculty of Environment"
+    },
+    {
+      "id": "liberal-arts-science",
+      "th": "คณะศิลปศาสตร์และวิทยาศาสตร์",
+      "en": "Faculty of Liberal Arts and Science"
+    },
+    {
+      "id": "service-industry",
+      "th": "คณะอุตสาหกรรมบริการ",
+      "en": "Faculty of Service Industry"
+    },
+    {
+      "id": "education-development",
+      "th": "คณะศึกษาศาสตร์และพัฒนศาสตร์",
+      "en": "Faculty of Education and Development Sciences"
+    }
+  ],
+  "others": [
+    {
+      "id": "male-uniform",
+      "th": "ชุดนักศึกษาชาย",
+      "en": "Male Uniform"
+    },
+    {
+      "id": "female-uniform",
+      "th": "ชุดนักศึกษาหญิง",
+      "en": "Female Uniform"
+    },
+    {
+      "id": "mohom",
+      "th": "ชุดม่อฮ่อม",
+      "en": "Mo Hom Suit"
+    }
+  ],
+  "backgrounds": [
+    {
+      "id": "eucalyptus-tunnel",
+      "th": "อุโมงค์ยูคาลิปตัส",
+      "en": "Eucalyptus Tunnel"
+    },
+    {
+      "id": "chomphu-road",
+      "th": "ถนนดอกชมพูพันธุ์ทิพย์",
+      "en": "Chomphu Phanthip Road"
+    },
+    {
+      "id": "rice-field",
+      "th": "ทุ่งข้าวสรรพสี",
+      "en": "Colorful Rice Field"
+    },
+    {
+      "id": "ku",
+      "th": "KU",
+      "en": "KU"
+    }
+  ]
+}
