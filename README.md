@@ -63,6 +63,23 @@ Set these in the shell or in `backend/.env` (see `backend/.env.example`). API do
 | `DATA_DIR` | `backend/data` | Photos (deleted after 7 days) and consent records |
 | `SAVE_STEPS` | false | Debug: keep each photo as received and framed in `data/steps/`; off for real visitors |
 
+## Install on a kiosk
+
+The kiosk is a PWA: open the site in Chrome and choose "Install app" (icon at the right of the address bar).
+It opens full screen with its own icon. There is no service worker, so a new deploy reaches every kiosk on reload.
+
+For a locked-down booth, start Chrome in kiosk mode at login (no address bar, no way out without a keyboard):
+
+```sh
+# Windows (shortcut in shell:startup)
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --app=https://<domain>
+# macOS (Login Items)
+open -na "Google Chrome" --args --kiosk --app=https://<domain>
+```
+
+Allow the camera for the site once (it is remembered), or grant it by policy with `VideoCaptureAllowedUrls`.
+The site must be served over HTTPS (or localhost) for both the camera and installing.
+
 ## Test and Storybook
 
 ```sh
