@@ -77,7 +77,9 @@ export function KioskProvider({ children }: { children: ReactNode }) {
     setStep('generating')
     setShots((n) => n + 1)
     try {
+      const t0 = performance.now()
       setResult(await generatePhoto(photo, { session, level, item, background }))
+      console.info(`[photo] uploaded and finished in ${((performance.now() - t0) / 1000).toFixed(1)}s`)
       setStep('result')
     } catch (e) {
       fail(errorCodeOf(e))

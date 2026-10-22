@@ -10,6 +10,6 @@ UI artwork (KU logo, flags, icons) lives in `kiosk/src/assets/` instead, bundled
 | `gowns/others/<id>.jpg` | Male uniform, female uniform, Mo Hom suit references (`male-uniform`, `female-uniform`, `mohom`) | Same as above |
 | `tiles/<level>/<faculty>.png` | Person-in-gown image on the faculty tile | Transparent PNG |
 | `backgrounds/<background>.jpg` | Campus scene the kiosk puts the visitor on (e.g. `backgrounds/chomphu-road.jpg`) | Portrait 9:16, at least 1080 × 1920, eye-level camera, empty space in the middle |
-| `frames/<background>.png` | Result frame for that scene | Transparent PNG, same size as the background, with the KU logo and place name |
+| `frames/<background>.png` | Optional extra overlay on that scene's photo (the logo, place and date header is drawn by the kiosk) | Transparent PNG, 2:3 (1080×1620) |
 
 Levels: `bachelor`, `master`, `doctoral`, `others`. Faculty and background ids are listed in `catalog.json`.

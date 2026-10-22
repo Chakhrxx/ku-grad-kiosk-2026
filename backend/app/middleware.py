@@ -1,6 +1,10 @@
+import logging
+import time
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
+
+log = logging.getLogger("uvicorn.error")
 
 YEAR, HOUR, WEEK = 31_536_000, 3_600, 604_800
 
@@ -22,4 +26,15 @@ async def add_cache_control(request: Request, call_next: Callable[[Request], Awa
     response = await call_next(request)
     if response.status_code in (200, 304) and (value := cache_control_for(request.url.path)):
         response.headers.setdefault("Cache-Control", value)
+    return response
+
+
+async def log_api_time(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    """How long each API call took, e.g. minting the Decart token or finishing a photo (uvicorn logs no timings)."""
+    t0 = time.perf_counter()
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        log.info(
+            "%s %s -> %d in %.2fs", request.method, request.url.path, response.status_code, time.perf_counter() - t0
+        )
     return response

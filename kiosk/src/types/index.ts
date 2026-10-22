@@ -27,11 +27,18 @@ export interface CatalogItem {
   en: string
 }
 
+export interface Background extends CatalogItem {
+  /** Header title on the photo; the Thai name when absent. */
+  photo_title?: string
+  /** Move the visitor right by this fraction of the photo width, leaving room for the scene's art. */
+  subject_shift?: number
+}
+
 export interface Catalog {
   levels: CatalogItem[]
   faculties: CatalogItem[]
   others: CatalogItem[]
-  backgrounds: CatalogItem[]
+  backgrounds: Background[]
 }
 
 export interface GenerateRequest {

@@ -20,3 +20,7 @@ export const DEFAULT_LEVEL = 'bachelor'
 export const STEP_REVEAL_STAGGER_MS = 350
 export const STEP_REVEAL_DURATION_MS = 1000
 
+
+/** The finished photo: 2:3, a 4×6" print, as in the design. */
+export const PHOTO_WIDTH = 1080
+export const PHOTO_HEIGHT = 1620

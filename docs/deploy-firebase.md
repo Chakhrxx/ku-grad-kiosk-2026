@@ -161,7 +161,7 @@ cd kiosk && bun run build && cd .. && firebase deploy --only hosting
 - [ ] ตั้ง budget alert (GCP) + ดู usage / spending limit ฝั่ง Decart
 - [ ] `SAVE_STEPS=false`
 - [ ] ข้อความ PDPA ตรงกับระยะเก็บ 7 วัน และระบุ Decart เป็นผู้ประมวลผล
-- [ ] ใส่ `backgrounds/ku.jpg` และ `frames/` ให้ครบ
+- [ ] ใส่ `frames/` (ถ้ามี) ให้ครบ
 - [ ] ทดสอบ QR บนมือถือผ่าน custom domain จริง
 - [ ] min-instances = 1 ก่อนเปิดงาน, = 0 หลังจบ
 

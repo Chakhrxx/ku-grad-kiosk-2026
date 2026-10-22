@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.config import Settings, get_settings
-from app.middleware import add_cache_control
+from app.middleware import add_cache_control, log_api_time
 from app.routers import catalog, consent, photos, realtime
 
 
@@ -11,6 +11,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="KU Graduation Photo Kiosk")
     app.middleware("http")(add_cache_control)
+    app.middleware("http")(log_api_time)
 
     app.include_router(catalog.router)
     app.include_router(consent.router)

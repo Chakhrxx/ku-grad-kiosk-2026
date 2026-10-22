@@ -1,5 +1,6 @@
 import { FilesetResolver, ImageSegmenter } from '@mediapipe/tasks-vision'
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { PHOTO_HEIGHT, PHOTO_WIDTH } from '@/config'
 import { updatePersonAlpha } from '@/lib/personMask'
 
 // Self-hosted (kiosk/public/mediapipe), so the kiosk never depends on a CDN being reachable.
@@ -39,8 +40,15 @@ function cover(w: number, h: number, W: number, H: number) {
  * Each frame, the portrait middle of the (landscape) stream is copied to `frame` and segmented there, so the
  * model sees the visitor large rather than a small figure in a wide picture; `frame` and `mask` then always
  * belong to the same moment, for both the live view and the photo.
+ *
+ * `shift` moves the visitor right by that fraction of the width, for scenes with art on the left.
  */
-export function useLiveBackground(source: RefObject<HTMLVideoElement | null>, backgroundSrc: string, enabled: boolean) {
+export function useLiveBackground(
+  source: RefObject<HTMLVideoElement | null>,
+  backgroundSrc: string,
+  enabled: boolean,
+  shift = 0,
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const frameRef = useRef<HTMLCanvasElement | null>(null)
   const maskRef = useRef<HTMLCanvasElement | null>(null)
@@ -91,7 +99,7 @@ export function useLiveBackground(source: RefObject<HTMLVideoElement | null>, ba
           }
           result.close()
 
-          draw(canvas.getContext('2d')!, canvas.width, canvas.height, frame, mask, bg, true)
+          draw(canvas.getContext('2d')!, canvas.width, canvas.height, frame, mask, bg, true, shift)
           if (!readyNow.current) {
             readyNow.current = true
             setReady(true)
@@ -105,18 +113,20 @@ export function useLiveBackground(source: RefObject<HTMLVideoElement | null>, ba
       closed = true
       cancelAnimationFrame(raf)
     }
-  }, [enabled, backgroundSrc, source])
+  }, [enabled, backgroundSrc, source, shift])
 
-  /** The photo: 1080×1920, the background crisp and the visitor unmirrored. */
-  const capture = (): Promise<Blob> => {
+  /** The photo: full size, the background crisp and the visitor unmirrored; `finish` draws on top (the header). */
+  const capture = async (finish?: (ctx: CanvasRenderingContext2D) => Promise<void>): Promise<Blob> => {
     const frame = frameRef.current
     const mask = maskRef.current
     const bg = backgroundRef.current
-    if (!frame || !mask || !bg || !readyNow.current) return Promise.reject(new Error('live background not ready'))
+    if (!frame || !mask || !bg || !readyNow.current) throw new Error('live background not ready')
     const canvas = document.createElement('canvas')
-    canvas.width = 1080
-    canvas.height = 1920
-    draw(canvas.getContext('2d')!, canvas.width, canvas.height, frame, mask, bg, false)
+    canvas.width = PHOTO_WIDTH
+    canvas.height = PHOTO_HEIGHT
+    const ctx = canvas.getContext('2d')!
+    draw(ctx, canvas.width, canvas.height, frame, mask, bg, false, shift)
+    await finish?.(ctx)
     return new Promise((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('capture failed'))), 'image/jpeg', 0.92),
     )
@@ -134,6 +144,7 @@ function draw(
   mask: HTMLCanvasElement,
   bg: HTMLImageElement,
   mirror: boolean,
+  shift: number,
 ) {
   // the visitor: the segmented frame, keeping only where the mask says "person" (frame and mask share geometry)
   const person = new OffscreenCanvas(W, H)
@@ -153,6 +164,7 @@ function draw(
     ctx.clearRect(0, 0, W, H)
   }
   ctx.save()
+  ctx.translate(shift * W, 0) // to the right on screen too: the scene is never mirrored
   if (mirror) {
     ctx.translate(W, 0)
     ctx.scale(-1, 1) // a selfie view for posing; the background itself stays the right way round

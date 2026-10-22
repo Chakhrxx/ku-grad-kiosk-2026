@@ -1,4 +1,5 @@
-"""Finish a photo: the kiosk sends the visitor already dressed and on the campus background; add the frame."""
+"""Finish a photo: the kiosk sends it finished (dressed, on the campus scene, with the logo, place and date
+header drawn); an optional frame PNG per scene can still go on top."""
 
 import io
 import logging
@@ -13,10 +14,9 @@ log = logging.getLogger("uvicorn.error")
 
 
 def add_frame(photo: bytes, frame: Path) -> bytes:
-    """Overlay the background's frame PNG (KU logo, place name) when there is one; return JPEG bytes."""
+    """Overlay the background's frame PNG when there is one; return JPEG bytes."""
     out = Image.open(io.BytesIO(photo)).convert("RGB")
     if frame.is_file():
-        # ponytail: the frame PNG carries logo + place name; the date is not drawn yet
         overlay = Image.open(frame).convert("RGBA").resize(out.size)
         out = Image.alpha_composite(out.convert("RGBA"), overlay).convert("RGB")
     buf = io.BytesIO()

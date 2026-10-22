@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Screen, ShutterButton } from '@/components'
 import { COUNTDOWN_SECONDS } from '@/config'
 import { useCamera } from '@/hooks/useCamera'
@@ -9,6 +9,7 @@ import { useLiveBackground } from '@/hooks/useLiveBackground'
 import { TRYON_CAMERA, useTryOnStream } from '@/hooks/useTryOnStream'
 import { backgroundUrl } from '@/lib/assetUrls'
 import { cn } from '@/lib/cn'
+import { drawPhotoHeader, photoDate, PLACE_HEADER, UNIVERSITY_HEADER } from '@/lib/photoHeader'
 import { KioskHeader } from '../shared/KioskHeader'
 
 /** The viewfinder inside the corner brackets, in design px (Figma camera frame). */
@@ -26,7 +27,11 @@ const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SE
  */
 export function CameraScreen() {
   const { t } = useI18n()
-  const { session, level, item, background, shoot, fail } = useKiosk()
+  const { catalog, session, level, item, background, shoot, fail } = useKiosk()
+  const scene = catalog?.backgrounds.find((b) => b.id === background)
+  // the place name on the photo is always Thai, as in the design; the KU scene has its own title and header
+  const title = scene?.photo_title ?? scene?.th ?? ''
+  const header = scene?.photo_title ? UNIVERSITY_HEADER : PLACE_HEADER
   const [live, setLive] = useState(false) // the camera picture is showing
   const [dressed, setDressed] = useState(false) // the picture in the gown is arriving
   // ponytail: the camera must be mounted upright; a rotated camera would need its frames turned before streaming
@@ -37,7 +42,13 @@ export function CameraScreen() {
     ready: sceneReady,
     readyNow: sceneReadyNow,
     capture: captureScene,
-  } = useLiveBackground(dressedRef, backgroundUrl(background), dressed)
+  } = useLiveBackground(dressedRef, backgroundUrl(background), dressed, scene?.subject_shift)
+
+  // Timings in the browser console, next to the [try-on] ones: how long the visitor waits at each step
+  const [openedAt] = useState(() => performance.now())
+  useEffect(() => {
+    if (sceneReady) console.info(`[photo] on the scene ${secondsSince(openedAt)} after the camera screen opened`)
+  }, [sceneReady, openedAt])
 
   // The countdown also buys time for the stream to connect; if the scene still isn't there, wait for it,
   // so the photo is always the visitor in the gown on the campus
@@ -50,8 +61,12 @@ export function CameraScreen() {
   }
   const { count, start } = useCountdown(COUNTDOWN_SECONDS, async () => {
     try {
+      const t0 = performance.now()
       await whenOnScene()
-      shoot(await captureScene())
+      const t1 = performance.now()
+      const photo = await captureScene((ctx) => drawPhotoHeader(ctx, header, title, photoDate()))
+      console.info(`[photo] countdown over: waited ${secondsSince(t0, t1)} for the scene, captured in ${secondsSince(t1)}`)
+      shoot(photo)
     } catch (e) {
       console.error('capture failed', e)
       fail('ai')
@@ -133,6 +148,8 @@ export function CameraScreen() {
     </Screen>
   )
 }
+
+const secondsSince = (from: number, to = performance.now()) => `${((to - from) / 1000).toFixed(1)}s`
 
 /** Four rounded corner brackets around the viewfinder, as in the design. */
 function CornerBrackets() {

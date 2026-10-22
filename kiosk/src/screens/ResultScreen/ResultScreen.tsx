@@ -24,7 +24,7 @@ export function ResultScreen() {
         </>
       }
     >
-      <img src={result.image} alt="" className="aspect-9/16 h-150 rounded-card bg-primary-soft object-cover shadow-lg" />
+      <img src={result.image} alt="" className="aspect-2/3 h-150 rounded-card bg-primary-soft object-cover shadow-lg" />
       {outfit && <p className="text-title font-bold text-primary">{name(outfit)}</p>}
       <p className="-mt-3 text-xs font-medium text-primary">{t.result.caption}</p>
       <div className="flex items-center gap-5">

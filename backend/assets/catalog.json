@@ -104,7 +104,9 @@
     {
       "id": "ku",
       "th": "KU",
-      "en": "KU"
+      "en": "KU",
+      "photo_title": "KASETSART UNIVERSITY",
+      "subject_shift": 0.25
     }
   ]
 }
