@@ -55,7 +55,6 @@ export const en = {
     getReady: 'Let’s Get Ready..',
     play: 'Let’s Play !',
     shutter: 'Take photo',
-    dressing: 'Putting on your gown…',
   },
   generating: 'Creating your photo…',
   result: {

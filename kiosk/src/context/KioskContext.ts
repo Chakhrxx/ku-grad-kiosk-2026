@@ -23,7 +23,8 @@ export interface KioskValue {
   /** Current visitor's session id (for the try-on stream token). */
   session: string
   /** The finished photo from the camera screen. */
-  shoot: (photo: Blob) => void
+  /** Show the generating screen while `photo` is made, then upload it. */
+  shoot: (photo: Promise<Blob>) => void
   fail: (code: ErrorCode) => void
   retry: () => void
   reset: () => void

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
+import { dressPhoto } from '@/api/client'
 import { Screen, ShutterButton } from '@/components'
 import { COUNTDOWN_SECONDS } from '@/config'
 import { useCamera } from '@/hooks/useCamera'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useI18n } from '@/hooks/useI18n'
 import { useKiosk } from '@/hooks/useKiosk'
-import { useLiveBackground } from '@/hooks/useLiveBackground'
-import { TRYON_CAMERA, useTryOnStream } from '@/hooks/useTryOnStream'
+import { compositePhoto, useLiveBackground } from '@/hooks/useLiveBackground'
 import { backgroundUrl } from '@/lib/assetUrls'
 import { cn } from '@/lib/cn'
 import { drawPhotoHeader, photoDate, PLACE_HEADER, UNIVERSITY_HEADER } from '@/lib/photoHeader'
@@ -15,15 +15,17 @@ import { KioskHeader } from '../shared/KioskHeader'
 /** The viewfinder inside the corner brackets, in design px (Figma camera frame). */
 const VIEW_W = 554
 const VIEW_H = 680
-/** If the visitor is still not on the scene when the countdown ends, give up after this long. */
-const SCENE_WAIT_MS = 15_000
+/** As sharp as the webcam goes; the photo is a portrait slice of it. */
+const CAMERA: MediaTrackConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 } }
+/** Decart's image model returns 720x1280, so the shot sent to it is cut to the same shape (it would crop otherwise). */
+const SHOT_ASPECT = 9 / 16
 const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SECONDS - i) // 5, 4, 3, 2, 1
 
 /**
- * The camera opens on arrival so visitors see themselves; then the Decart try-on stream dresses them and the
- * browser cuts them out onto the chosen campus scene, live. The shutter unlocks once they are on the scene; it
- * starts the countdown, and the photo is that scene at the end of it: already finished, the server only adds
- * the frame.
+ * The camera opens on arrival and the browser cuts the visitor out onto the chosen campus scene, live, so they
+ * can pose. The shutter starts the countdown; at its end the camera's own frame goes to the server's image
+ * model to be dressed (sharper than a live try-on stream, and billed per photo, not per second), and the dressed
+ * visitor is cut out onto the scene again for the photo.
  */
 export function CameraScreen() {
   const { t } = useI18n()
@@ -33,55 +35,49 @@ export function CameraScreen() {
   const title = scene?.photo_title ?? scene?.th ?? ''
   const header = scene?.photo_title ? UNIVERSITY_HEADER : PLACE_HEADER
   const [live, setLive] = useState(false) // the camera picture is showing
-  const [dressed, setDressed] = useState(false) // the picture in the gown is arriving
-  // ponytail: the camera must be mounted upright; a rotated camera would need its frames turned before streaming
-  const { videoRef, stream } = useCamera(true, () => fail('camera'), TRYON_CAMERA)
-  const dressedRef = useTryOnStream({ camera: stream, session, level, item, onError: () => fail('ai') })
-  const {
-    canvasRef: sceneRef,
-    ready: sceneReady,
-    readyNow: sceneReadyNow,
-    capture: captureScene,
-  } = useLiveBackground(dressedRef, backgroundUrl(background), dressed, scene?.subject_shift)
+  // ponytail: the camera must be mounted upright; a rotated camera would need its frames turned first
+  const { videoRef } = useCamera(true, () => fail('camera'), CAMERA)
+  const { canvasRef: sceneRef, ready: sceneReady } = useLiveBackground(
+    videoRef,
+    backgroundUrl(background),
+    live,
+    scene?.subject_shift,
+  )
 
-  // Timings in the browser console, next to the [try-on] ones: how long the visitor waits at each step
+  // Timings in the browser console: how long the visitor waits at each step
   const [openedAt] = useState(() => performance.now())
   useEffect(() => {
     if (sceneReady) console.info(`[photo] on the scene ${secondsSince(openedAt)} after the camera screen opened`)
   }, [sceneReady, openedAt])
 
-  // The countdown also buys time for the stream to connect; if the scene still isn't there, wait for it,
-  // so the photo is always the visitor in the gown on the campus
-  const whenOnScene = async () => {
-    const deadline = performance.now() + SCENE_WAIT_MS
-    while (!sceneReadyNow.current) {
-      if (performance.now() > deadline) throw new Error('try-on scene never arrived')
-      await new Promise((r) => setTimeout(r, 100))
-    }
+  const makePhoto = async (video: HTMLVideoElement) => {
+    const t0 = performance.now()
+    console.info(`[photo] camera ${video.videoWidth}x${video.videoHeight}`)
+    const dressed = await dressPhoto(await grabShot(video), { session, level, item })
+    const t1 = performance.now()
+    const photo = await compositePhoto(
+      await createImageBitmap(dressed),
+      backgroundUrl(background),
+      (ctx) => drawPhotoHeader(ctx, header, title, photoDate()),
+      scene?.subject_shift,
+    )
+    console.info(`[photo] dressed in ${secondsSince(t0, t1)}, put on the scene in ${secondsSince(t1)}`)
+    return photo
   }
-  const { count, start } = useCountdown(COUNTDOWN_SECONDS, async () => {
-    try {
-      const t0 = performance.now()
-      await whenOnScene()
-      const t1 = performance.now()
-      const photo = await captureScene((ctx) => drawPhotoHeader(ctx, header, title, photoDate()))
-      console.info(`[photo] countdown over: waited ${secondsSince(t0, t1)} for the scene, captured in ${secondsSince(t1)}`)
-      shoot(photo)
-    } catch (e) {
-      console.error('capture failed', e)
-      fail('ai')
-    }
+  const { count, start } = useCountdown(COUNTDOWN_SECONDS, () => {
+    if (videoRef.current) shoot(makePhoto(videoRef.current))
+    else fail('camera')
   })
   const counting = count !== null
-  // "Let's Play !" and the shutter only once the visitor stands on the scene in the gown, so nobody shoots early
-  const phase = sceneReady ? 'play' : 'getReady'
+  // The photo is made from the camera itself, so the shutter needs only the camera; the scene is a preview
+  const phase = live ? 'play' : 'getReady'
 
   return (
     <Screen header={<KioskHeader title={t.camera.title} back="preview" showHome />}>
       <p className="mt-7.5 text-lg font-semibold text-primary">{t.camera.subtitle}</p>
 
-      {/* Viewfinder inside corner brackets. The raw camera shows first (mirrored like a selfie) and feeds the
-          try-on stream; the dressed video is hidden, only the source for the scene canvas the visitor sees. */}
+      {/* Viewfinder inside corner brackets. The raw camera shows first (mirrored like a selfie), then the scene
+          canvas with the visitor cut out onto it covers it. */}
       <div className="absolute top-84 left-20.75 overflow-hidden rounded-[18px]" style={{ width: VIEW_W, height: VIEW_H }}>
         <video
           ref={videoRef}
@@ -94,7 +90,6 @@ export function CameraScreen() {
             live ? 'opacity-100' : 'opacity-0',
           )}
         />
-        <video ref={dressedRef} autoPlay muted playsInline onPlaying={() => setDressed(true)} className="hidden" />
         <canvas
           ref={sceneRef}
           width={VIEW_W * 1.5}
@@ -104,11 +99,6 @@ export function CameraScreen() {
             sceneReady ? 'opacity-100' : 'opacity-0',
           )}
         />
-        {live && !sceneReady && (
-          <p className="absolute inset-x-0 bottom-5 mx-auto w-fit animate-breathe rounded-pill bg-white/85 px-5 py-2 text-base font-semibold text-primary motion-reduce:animate-none">
-            {t.camera.dressing}
-          </p>
-        )}
         {counting && <div className="absolute inset-0 bg-primary/25" />}
         {/* inside the viewfinder, so numbers past its edges are clipped rather than drifting over the header */}
         {counting && <CountdownDrum count={count} />}
@@ -135,8 +125,8 @@ export function CameraScreen() {
         {phase === 'play' && (
           <span aria-hidden="true" className="absolute inset-0 animate-call rounded-full border-4 border-white motion-reduce:animate-none" />
         )}
-        {/* hidden, not just greyed out, while the gown goes on, so nobody reaches for it early */}
-        {sceneReady && (
+        {/* hidden, not just greyed out, until the camera is up, so nobody reaches for it early */}
+        {live && (
           <ShutterButton
             label={t.camera.shutter}
             onClick={start}
@@ -150,6 +140,18 @@ export function CameraScreen() {
 }
 
 const secondsSince = (from: number, to = performance.now()) => `${((to - from) / 1000).toFixed(1)}s`
+
+/** The camera's current frame, its portrait middle at full height, unmirrored, as JPEG. */
+function grabShot(video: HTMLVideoElement): Promise<Blob> {
+  const h = video.videoHeight
+  const w = Math.min(video.videoWidth, Math.round(h * SHOT_ASPECT))
+  const canvas = document.createElement('canvas')
+  Object.assign(canvas, { width: w, height: h })
+  canvas.getContext('2d')!.drawImage(video, (video.videoWidth - w) / 2, 0, w, h, 0, 0, w, h)
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('shot failed'))), 'image/jpeg', 0.92),
+  )
+}
 
 /** Four rounded corner brackets around the viewfinder, as in the design. */
 function CornerBrackets() {

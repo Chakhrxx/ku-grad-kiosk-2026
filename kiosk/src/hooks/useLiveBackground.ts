@@ -1,7 +1,7 @@
 import { FilesetResolver, ImageSegmenter } from '@mediapipe/tasks-vision'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '@/config'
-import { updatePersonAlpha } from '@/lib/personMask'
+import { personOpacity, updatePersonAlpha } from '@/lib/personMask'
 
 // Self-hosted (kiosk/public/mediapipe), so the kiosk never depends on a CDN being reachable.
 // selfie_multiclass splits a person into hair, skin, clothes and accessories, so the graduation cap stays in.
@@ -13,7 +13,7 @@ const CROP_ASPECT = 554 / 680
 
 let segmenter: Promise<ImageSegmenter> | undefined
 /** One segmenter for the life of the page; loading it takes a moment, so it is reused across visitors. */
-function loadSegmenter() {
+export function loadSegmenter() {
   segmenter ??= FilesetResolver.forVisionTasks(WASM).then((files) =>
     ImageSegmenter.createFromOptions(files, {
       baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
@@ -33,13 +33,20 @@ function cover(w: number, h: number, W: number, H: number) {
   return { sx: (w - cw) / 2, sy: (h - ch) / 2, sw: cw, sh: ch }
 }
 
+/** Write per-pixel person opacity into `mask`'s alpha channel, resizing it to the segmenter's output. */
+function putMask(mask: HTMLCanvasElement, alpha: Float32Array, width: number, height: number) {
+  const pixels = new ImageData(width, height)
+  for (let i = 0; i < alpha.length; i++) pixels.data[i * 4 + 3] = alpha[i] * 255
+  if (mask.width !== width || mask.height !== height) Object.assign(mask, { width, height })
+  mask.getContext('2d')!.putImageData(pixels, 0, 0)
+}
+
 /**
  * Cut the visitor out of `source` live and draw them on the campus background into the returned canvas,
- * like a video call's virtual background. `capture()` renders one full-size, unmirrored photo of it.
+ * like a video call's virtual background, so they can pose on the scene before the photo.
  *
  * Each frame, the portrait middle of the (landscape) stream is copied to `frame` and segmented there, so the
- * model sees the visitor large rather than a small figure in a wide picture; `frame` and `mask` then always
- * belong to the same moment, for both the live view and the photo.
+ * model sees the visitor large rather than a small figure in a wide picture.
  *
  * `shift` moves the visitor right by that fraction of the width, for scenes with art on the left.
  */
@@ -50,11 +57,7 @@ export function useLiveBackground(
   shift = 0,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const frameRef = useRef<HTMLCanvasElement | null>(null)
-  const maskRef = useRef<HTMLCanvasElement | null>(null)
-  const backgroundRef = useRef<HTMLImageElement | null>(null)
   const [ready, setReady] = useState(false)
-  const readyNow = useRef(false)
 
   useEffect(() => {
     if (!enabled) return
@@ -62,11 +65,8 @@ export function useLiveBackground(
     let closed = false
     const bg = new Image()
     bg.src = backgroundSrc
-    backgroundRef.current = bg
     const frame = document.createElement('canvas')
     const mask = document.createElement('canvas')
-    frameRef.current = frame
-    maskRef.current = mask
     let alpha = new Float32Array(0)
     let lastTime = -1
 
@@ -91,19 +91,12 @@ export function useLiveBackground(
           if (confidence) {
             const { width, height } = confidence
             if (alpha.length !== width * height) alpha = new Float32Array(width * height)
-            updatePersonAlpha(confidence.getAsFloat32Array(), alpha)
-            const pixels = new ImageData(width, height)
-            for (let i = 0; i < alpha.length; i++) pixels.data[i * 4 + 3] = alpha[i] * 255
-            if (mask.width !== width || mask.height !== height) Object.assign(mask, { width, height })
-            mask.getContext('2d')!.putImageData(pixels, 0, 0)
+            putMask(mask, updatePersonAlpha(confidence.getAsFloat32Array(), alpha), width, height)
           }
           result.close()
 
           draw(canvas.getContext('2d')!, canvas.width, canvas.height, frame, mask, bg, true, shift)
-          if (!readyNow.current) {
-            readyNow.current = true
-            setReady(true)
-          }
+          setReady(true)
         }
         tick()
       })
@@ -115,24 +108,41 @@ export function useLiveBackground(
     }
   }, [enabled, backgroundSrc, source, shift])
 
-  /** The photo: full size, the background crisp and the visitor unmirrored; `finish` draws on top (the header). */
-  const capture = async (finish?: (ctx: CanvasRenderingContext2D) => Promise<void>): Promise<Blob> => {
-    const frame = frameRef.current
-    const mask = maskRef.current
-    const bg = backgroundRef.current
-    if (!frame || !mask || !bg || !readyNow.current) throw new Error('live background not ready')
-    const canvas = document.createElement('canvas')
-    canvas.width = PHOTO_WIDTH
-    canvas.height = PHOTO_HEIGHT
-    const ctx = canvas.getContext('2d')!
-    draw(ctx, canvas.width, canvas.height, frame, mask, bg, false, shift)
-    await finish?.(ctx)
-    return new Promise((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('capture failed'))), 'image/jpeg', 0.92),
-    )
-  }
+  return { canvasRef, ready }
+}
 
-  return { canvasRef, ready, readyNow, capture }
+/**
+ * The photo from one still (the visitor already dressed): cut out onto the campus background at full size,
+ * unmirrored; `finish` draws on top (the header).
+ */
+export async function compositePhoto(
+  image: ImageBitmap,
+  backgroundSrc: string,
+  finish: (ctx: CanvasRenderingContext2D) => Promise<void>,
+  shift = 0,
+): Promise<Blob> {
+  const bg = new Image()
+  bg.src = backgroundSrc
+  const [seg] = await Promise.all([loadSegmenter(), bg.decode()])
+  const frame = document.createElement('canvas')
+  Object.assign(frame, { width: image.width, height: image.height })
+  frame.getContext('2d')!.drawImage(image, 0, 0)
+
+  const mask = document.createElement('canvas')
+  const result = seg.segmentForVideo(frame, performance.now())
+  const confidence = result.confidenceMasks?.[BACKGROUND_CLASS]
+  if (!confidence) throw new Error('no person mask')
+  putMask(mask, confidence.getAsFloat32Array().map(personOpacity), confidence.width, confidence.height)
+  result.close()
+
+  const canvas = document.createElement('canvas')
+  Object.assign(canvas, { width: PHOTO_WIDTH, height: PHOTO_HEIGHT })
+  const ctx = canvas.getContext('2d')!
+  draw(ctx, canvas.width, canvas.height, frame, mask, bg, false, shift)
+  await finish(ctx)
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('capture failed'))), 'image/jpeg', 0.92),
+  )
 }
 
 // ponytail: plain alpha blend; add colour matching to the scene if people look pasted-on

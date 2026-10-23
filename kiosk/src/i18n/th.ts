@@ -60,7 +60,6 @@ export const th: Messages = {
     getReady: 'เตรียมตัวให้พร้อม..',
     play: 'ไปกันเลย !',
     shutter: 'ถ่ายรูป',
-    dressing: 'กำลังใส่ชุด…',
   },
   generating: 'กำลังสร้างรูป…',
   result: {
