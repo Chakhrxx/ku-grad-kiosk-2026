@@ -13,7 +13,7 @@ export interface HeaderLayout {
 /** The campus scenes: the Thai place name beside the logo, the date level with it. */
 export const PLACE_HEADER: HeaderLayout = {
   logo: { x: 42, y: 47, height: 124 },
-  title: { font: '700 48px "Noto Sans Thai Looped", "Noto Sans Thai", sans-serif', x: 184, y: 89 },
+  title: { font: '700 48px "Noto Sans Thai", sans-serif', x: 184, y: 89 },
   campus: { font: '400 25px Inter, sans-serif', x: 184, y: 134 },
   date: { font: '300 24px Inter, sans-serif', x: 1022, y: 76 },
 }

@@ -41,9 +41,9 @@ backend/                        Python 3.12+ + FastAPI (pyproject.toml, pytest, 
 cd backend
 python3 -m venv .venv && .venv/bin/pip install -e . --group dev
 cp .env.example .env   # then fill in DECART_API_KEY
-.venv/bin/uvicorn app.main:app --reload --port 8000
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# kiosk (second terminal), http://localhost:5173
+# kiosk (second terminal), http://172.20.10.7:5173
 cd kiosk && bun install && bun dev
 ```
 

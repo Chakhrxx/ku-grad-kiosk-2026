@@ -42,7 +42,7 @@ function stopwatch() {
 /**
  * Stream the camera through Decart's realtime try-on and play the dressed result into the returned video ref.
  * Connected only while the hook is mounted with a camera, since the stream is billed per second.
- * The gown reference is fetched as soon as the screen opens, alongside the camera, not after it.
+ * The gown reference and the first token are fetched as soon as the screen opens, alongside the camera, not after it.
  */
 export function useTryOnStream({ camera, session, level, item, onError }: TryOn) {
   const outputRef = useRef<HTMLVideoElement>(null)
@@ -55,17 +55,22 @@ export function useTryOnStream({ camera, session, level, item, onError }: TryOn)
       }),
     [level, item],
   )
+  // ponytail: the token lives 60s and the camera opens in a second or two; later calls (reconnects) mint a fresh one
+  const token = useMemo(() => getRealtimeToken(session), [session])
   // a failed prefetch is reported when the stream needs it, not as an unhandled rejection now
   useEffect(() => void gown.catch(() => {}), [gown])
+  useEffect(() => void token.catch(() => {}), [token])
 
   useEffect(() => {
     if (!camera) return
     let rt: RealTimeClient | undefined
     let closed = false
     const lap = stopwatch()
+    let prefetched: Promise<string> | undefined = token
     const client = createDecartClient({
       apiKeyProvider: async () => {
-        const key = await getRealtimeToken(session)
+        const key = await (prefetched ?? getRealtimeToken(session))
+        prefetched = undefined
         lap('token ready')
         return key
       },
@@ -97,7 +102,7 @@ export function useTryOnStream({ camera, session, level, item, onError }: TryOn)
       closed = true
       rt?.disconnect() // stop billing as soon as the camera screen closes
     }
-  }, [camera, session, level, gown])
+  }, [camera, session, level, gown, token])
 
   return outputRef
 }

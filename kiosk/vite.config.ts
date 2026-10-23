@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-const backend = 'http://localhost:8000'
+const host = '172.20.10.7'
+const backend = `http://${host}:8000`
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -15,6 +16,7 @@ export default defineConfig({
     assetsDir: 'static',
   },
   server: {
+    host,
     proxy: { '/api': backend, '/assets': backend, '/photos': backend, '/p/': backend },
   },
   test: {
