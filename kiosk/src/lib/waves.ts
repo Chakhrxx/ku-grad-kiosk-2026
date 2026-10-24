@@ -67,7 +67,7 @@ const HALF_TURN_PX = 450
 const SPIN = 0.28
 
 /** One knob for how fast the ribbon spins: lower is calmer. */
-export const WAVE_SPEED = 0.6
+export const WAVE_SPEED = 0.18
 
 export interface Touch {
   x: number

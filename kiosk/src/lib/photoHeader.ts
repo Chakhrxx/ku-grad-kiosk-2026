@@ -28,6 +28,8 @@ const COLOR = '#006c67'
 /** Solid white down to here, then fading into the scene by FADE_END. */
 const WHITE_END = 170
 const FADE_END = 640
+/** Without the full fade, the white still eases out over this much, so it never cuts across the scene in a line. */
+const FEATHER = 36
 
 let logo: Promise<HTMLImageElement> | undefined
 function loadLogo() {
@@ -84,6 +86,13 @@ export async function drawPhotoHeader(
   ctx.scale(ctx.canvas.width / 1080, ctx.canvas.width / 1080)
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, 1080, WHITE_END)
+  if (!fade) {
+    const feather = ctx.createLinearGradient(0, WHITE_END, 0, WHITE_END + FEATHER)
+    feather.addColorStop(0, 'rgba(255, 255, 255, 1)')
+    feather.addColorStop(1, 'rgba(255, 255, 255, 0)')
+    ctx.fillStyle = feather
+    ctx.fillRect(0, WHITE_END, 1080, FEATHER)
+  }
   ctx.restore()
   if (fade) drawHeaderFade(ctx)
   ctx.save()

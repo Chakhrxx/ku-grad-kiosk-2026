@@ -16,6 +16,12 @@ describe('updatePersonAlpha', () => {
     expect(settle(0.15)).toBeLessThan(0.01)
   })
 
+  it('keeps up with the visitor moving: a part moving in shows almost at once', () => {
+    const alpha = new Float32Array([0])
+    updatePersonAlpha(new Float32Array([0]), alpha) // this frame says "person"
+    expect(alpha[0]).toBeGreaterThan(0.8)
+  })
+
   it('rides out a one-frame dropout instead of flickering away', () => {
     const alpha = new Float32Array([1])
     updatePersonAlpha(new Float32Array([1]), alpha) // this frame says "background"

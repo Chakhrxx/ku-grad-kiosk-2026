@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { cn } from '@/lib/cn'
 
 export interface ShutterButtonProps {
@@ -25,8 +26,15 @@ const BLADES = HEX.map(([x1, y1], k) => {
   return { x1, y1, x2: x1 + dx * t, y2: y1 + dy * t }
 })
 
-/** The round camera shutter: a white ring around teal aperture blades, sinking when pressed. */
+/** Four waves across a 200-wide strip, so sliding it one wave (50) along loops seamlessly. */
+const WAVE = 'M0 60Q12.5 53 25 60T50 60T75 60T100 60T125 60T150 60T175 60T200 60V100H0Z'
+
+/**
+ * The round camera shutter: a white ring around teal aperture blades turning slowly like a whirlpool, over water
+ * whose waves roll across the lower half; sinks when pressed.
+ */
 export function ShutterButton({ label, onClick, disabled = false, className }: ShutterButtonProps) {
+  const clip = useId()
   return (
     <button
       type="button"
@@ -40,10 +48,19 @@ export function ShutterButton({ label, onClick, disabled = false, className }: S
       )}
     >
       <svg viewBox="0 0 100 100" aria-hidden="true" className="size-full">
-        <circle cx="50" cy="50" r="45" fill="#6fadaa" stroke="white" strokeWidth="7" />
-        {BLADES.map((l, i) => (
-          <line key={i} {...l} stroke="white" strokeWidth="3" />
-        ))}
+        <clipPath id={clip}>
+          <circle cx="50" cy="50" r="45" />
+        </clipPath>
+        <circle cx="50" cy="50" r="45" fill="#6fadaa" />
+        <g clipPath={`url(#${clip})`}>
+          <path d={WAVE} fill="#3f9692" className="animate-shutter-wave motion-reduce:animate-none" />
+        </g>
+        <g style={{ transformOrigin: '50px 50px' }} className="animate-shutter-turn motion-reduce:animate-none">
+          {BLADES.map((l, i) => (
+            <line key={i} {...l} stroke="white" strokeWidth="3" />
+          ))}
+        </g>
+        <circle cx="50" cy="50" r="45" fill="none" stroke="white" strokeWidth="7" />
       </svg>
     </button>
   )

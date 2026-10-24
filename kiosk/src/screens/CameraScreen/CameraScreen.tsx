@@ -65,7 +65,7 @@ const BAND_GREY = '#808080'
 const MATTE_WIDTH = 1080
 /** vton-live: the scene picture kept for the photo is 9:16 at the photo's width, the photo its middle. */
 const SCENE_HEIGHT = Math.round((PHOTO_WIDTH * 16) / 9)
-const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SECONDS - i) // 5, 4, 3, 2, 1
+const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SECONDS - i) // 8, 7, … 1
 
 /**
  * The camera opens on arrival so visitors see themselves; then the Decart try-on stream dresses them and the
@@ -370,7 +370,11 @@ export function CameraScreen() {
 
       <div className="absolute bottom-12.5 size-28.75">
         {phase === 'play' && (
-          <span aria-hidden="true" className="absolute inset-0 animate-call rounded-full border-4 border-white motion-reduce:animate-none" />
+          // ripples spreading from it, like rings on water
+          <>
+            <span aria-hidden="true" className="absolute inset-0 animate-call rounded-full border-3 border-white motion-reduce:animate-none" />
+            <span aria-hidden="true" className="absolute inset-0 animate-call rounded-full border-2 border-white [animation-delay:1.1s] motion-reduce:animate-none" />
+          </>
         )}
         {/* hidden, not just greyed out, while the gown goes on, so nobody reaches for it early */}
         {canShoot && (
@@ -378,7 +382,7 @@ export function CameraScreen() {
             label={t.camera.shutter}
             onClick={start}
             disabled={counting || holding}
-            className="relative animate-pop-in motion-reduce:animate-none"
+            className="relative animate-sheet-in motion-reduce:animate-none"
           />
         )}
       </div>
@@ -487,17 +491,19 @@ function photoSlice(image: ImageBitmap | HTMLCanvasElement) {
 
 /** Four rounded corner brackets around the viewfinder, as in the design. */
 function CornerBrackets({ width }: { width: number }) {
+  // a little way out from the viewfinder, corners rounded to match, so they frame it rather than read as its torn edge
+  const gap = 12
   const arm = 'absolute size-35 border-primary'
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute top-84"
-      style={{ width, height: VIEW_H, left: (STAGE_W - width) / 2 }}
+      className="pointer-events-none absolute"
+      style={{ top: 336 - gap, width: width + 2 * gap, height: VIEW_H + 2 * gap, left: (STAGE_W - width) / 2 - gap }}
     >
-      <div className={cn(arm, 'top-0 left-0 rounded-tl-[10px] border-t-2 border-l-2')} />
-      <div className={cn(arm, 'top-0 right-0 rounded-tr-[10px] border-t-2 border-r-2')} />
-      <div className={cn(arm, 'bottom-0 left-0 rounded-bl-[10px] border-b-2 border-l-2')} />
-      <div className={cn(arm, 'right-0 bottom-0 rounded-br-[10px] border-r-2 border-b-2')} />
+      <div className={cn(arm, 'top-0 left-0 rounded-tl-[30px] border-t-2 border-l-2')} />
+      <div className={cn(arm, 'top-0 right-0 rounded-tr-[30px] border-t-2 border-r-2')} />
+      <div className={cn(arm, 'bottom-0 left-0 rounded-bl-[30px] border-b-2 border-l-2')} />
+      <div className={cn(arm, 'right-0 bottom-0 rounded-br-[30px] border-r-2 border-b-2')} />
     </div>
   )
 }

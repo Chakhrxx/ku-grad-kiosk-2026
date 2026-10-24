@@ -23,7 +23,8 @@ const catalog = {
 
 async function startAndOpenConsent() {
   render(<App />)
-  await userEvent.click(screen.getByRole('button', { name: 'ENGLISH' }))
+  await userEvent.click(screen.getByText('แตะที่หน้าจอเพื่อเริ่ม')) // the keys wait for a first touch
+  await userEvent.click(await screen.findByRole('button', { name: 'ENGLISH' }))
   await userEvent.click(screen.getByRole('button', { name: "Let's start" }))
   await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
   return screen.getByRole('dialog', { name: 'Data Collection & Usage Consent' })
@@ -40,13 +41,15 @@ describe('kiosk flow', () => {
     vi.mocked(api.giveConsent).mockResolvedValue({ ok: true })
   })
 
-  it('declining consent goes straight home without recording anything', async () => {
+  it('declining consent records nothing and stays on How to Join, where Next opens the consent again', async () => {
     await startAndOpenConsent()
     expect(screen.getAllByRole('button', { name: 'Next' }).at(-1)).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: 'Don’t allow' }))
 
-    expect(await screen.findByRole('button', { name: "Let's start" })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(api.giveConsent).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByRole('dialog', { name: 'Data Collection & Usage Consent' })).toBeInTheDocument()
   })
 
   it('agreeing records consent for this session and opens degree & faculty', async () => {
@@ -75,17 +78,17 @@ describe('kiosk flow', () => {
     expect(next).toBeEnabled()
   })
 
-  it('How to Join unlocks Next only after every step has appeared', async () => {
+  it('How to Join shows Next only after every step has appeared', async () => {
     prefersReducedMotion(false)
     render(<App />)
-    await userEvent.click(screen.getByRole('button', { name: 'ENGLISH' }))
+    await userEvent.click(screen.getByText('แตะที่หน้าจอเพื่อเริ่ม')) // the keys wait for a first touch
+    await userEvent.click(await screen.findByRole('button', { name: 'ENGLISH' }))
     await userEvent.click(screen.getByRole('button', { name: "Let's start" }))
 
-    const next = await screen.findByRole('button', { name: 'Next' })
-    expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(7)
-    expect(next).toBeDisabled()
-    await waitFor(() => expect(next).toBeEnabled(), { timeout: 4500 })
-  })
+    await waitFor(() => expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(7))
+    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Next' }, { timeout: 8000 })).toBeEnabled()
+  }, 12_000)
 
   it('picking a faculty before a degree selects the bachelor degree shown on the tiles', async () => {
     await startAndOpenConsent()
@@ -115,7 +118,8 @@ describe('kiosk flow', () => {
   it('shows the network error when the catalog cannot load', async () => {
     vi.mocked(api.getCatalog).mockRejectedValue(new api.ApiError('network'))
     render(<App />)
-    await userEvent.click(screen.getByRole('button', { name: 'เริ่มกันเลย' }))
+    await userEvent.click(screen.getByText('แตะที่หน้าจอเพื่อเริ่ม')) // Start waits for a first touch
+    await userEvent.click(await screen.findByRole('button', { name: 'เริ่มกันเลย' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('อินเทอร์เน็ตขัดข้อง')
   })
 })

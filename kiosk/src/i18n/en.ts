@@ -6,6 +6,7 @@ export const en = {
     campus: 'KAMPHAENG SAEN CAMPUS',
     tagline: 'Step into a moment of pride with the graduation gown that stands beside you on your day of success.',
     start: "Let's start",
+    tapToBegin: 'Tap the screen to begin',
   },
   howTo: {
     title: 'How to Join',
@@ -58,7 +59,8 @@ export const en = {
     shutter: 'Take photo',
     dressing: 'Putting on your gown…',
   },
-  generating: 'Creating your photo…',
+  /** Shown in turn while the photo is made, so the wait has something to read. */
+  generating: ['Creating your photo…', 'Fitting your gown…', 'Getting the light just right…', 'Sharpening the details…'],
   generatingScene: 'Putting you on the scene…',
   result: {
     title: 'Your Impressionable Moment',

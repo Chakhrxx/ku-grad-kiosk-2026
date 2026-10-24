@@ -17,6 +17,8 @@ export interface KioskValue {
   preview?: string
   error: ErrorCode
   canRetake: boolean
+  /** The visitor said "Don't allow" and is back on How to Join, free to tap Next again. */
+  consentDeclined: boolean
 
   start: () => void
   goTo: (step: Step) => void

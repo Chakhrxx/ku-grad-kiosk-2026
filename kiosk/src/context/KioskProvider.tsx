@@ -21,6 +21,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
   const [alternate, setAlternate] = useState<PhotoResult>()
   const [error, setError] = useState<ErrorCode>('ai')
   const [preview, setPreview] = useState<string>()
+  const [consentDeclined, setConsentDeclined] = useState(false)
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]) // each one freed once replaced
 
   /** End the session and forget everything about this visitor. */
@@ -34,6 +35,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
     setResult(undefined)
     setAlternate(undefined)
     setPreview(undefined)
+    setConsentDeclined(false)
   }
 
   const fail = (code: ErrorCode) => {
@@ -59,7 +61,12 @@ export function KioskProvider({ children }: { children: ReactNode }) {
   }
 
   const answerConsent = async (agreed: boolean) => {
-    if (!agreed) return reset() // no consent: the camera never opens
+    if (!agreed) {
+      // no consent: the camera never opens, but they stay on How to Join and may tap Next to think again
+      setConsentDeclined(true)
+      return setStep('howto')
+    }
+    setConsentDeclined(false)
     try {
       await giveConsent(session, lang)
       setStep('grade')
@@ -116,6 +123,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
     preview,
     error,
     canRetake: shots < MAX_SHOTS,
+    consentDeclined,
     start,
     goTo: setStep,
     answerConsent,

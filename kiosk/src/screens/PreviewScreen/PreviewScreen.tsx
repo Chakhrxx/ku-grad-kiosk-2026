@@ -11,6 +11,9 @@ const SWIPE_PX = 50
 /** Movement past this is a drag, not a tap. */
 const TAP_SLOP_PX = 8
 
+/** How long the cards glide to their new places; another pick waits until they have settled. */
+const GLIDE_MS = 650
+
 /** Must match the perspective-[…] on the carousel below. */
 const PERSPECTIVE = 1000
 
@@ -25,7 +28,9 @@ function cardStyle(o: number, dragging: boolean): CSSProperties {
     filter: `blur(${2.5 * Math.min(Math.abs(o), 1)}px) brightness(${1 - 0.12 * Math.min(Math.abs(o), 1)}) saturate(${1 - 0.2 * Math.min(Math.abs(o), 1)})`,
     pointerEvents: p.opacity === 0 ? 'none' : undefined,
     // follow the finger exactly while dragging; glide (ease in and out) when settling
-    transition: dragging ? 'none' : 'transform 650ms cubic-bezier(0.45, 0, 0.2, 1), opacity 650ms ease, filter 650ms ease',
+    transition: dragging
+      ? 'none'
+      : `transform ${GLIDE_MS}ms cubic-bezier(0.45, 0, 0.2, 1), opacity ${GLIDE_MS}ms ease, filter ${GLIDE_MS}ms ease`,
   }
 }
 
@@ -43,12 +48,17 @@ export function PreviewScreen() {
   const [drag, setDrag] = useState(0) // px the finger has moved during the current drag
   const [dragging, setDragging] = useState(false)
   const swiped = useRef(false)
+  const gliding = useRef(false) // the cards are still gliding to the last pick
   if (!catalog) return null
   // The centre card is always the pick, so the first backdrop is chosen before anything is tapped
   const picked = backgrounds[focus]?.id
 
-  // Bringing a backdrop to the centre (tap its card, its name, or swipe) also picks it
+  // Bringing a backdrop to the centre (tap its card, its name, or swipe) also picks it. Taps while the cards are
+  // still gliding are let go: each would cut the glide short, and quick taps sent the cards jumping about
   const show = (index: number) => {
+    if (gliding.current) return
+    gliding.current = true
+    setTimeout(() => (gliding.current = false), GLIDE_MS)
     const i = (index + backgrounds.length) % backgrounds.length
     setFocus(i)
     selectBackground(backgrounds[i].id)
@@ -86,15 +96,17 @@ export function PreviewScreen() {
           onPointerDown={(e) => {
             dragFrom.current = e.clientX
             swiped.current = false
-            setDragging(true)
           }}
           onPointerMove={(e) => {
             if (dragFrom.current === null) return
             const dx = (e.clientX - dragFrom.current) / scaleOf(e.currentTarget)
-            if (Math.abs(dx) > TAP_SLOP_PX && !swiped.current) {
+            if (!swiped.current) {
+              if (Math.abs(dx) <= TAP_SLOP_PX) return
+              // only once it is really a drag do the cards follow the finger (a tap must not stop a glide midway),
+              // and only then is the pointer captured: capturing on touch-down would send a tap's click to this
+              // container instead of the card that was tapped
               swiped.current = true
-              // capture only once it is really a drag: capturing on touch-down would send a tap's click to
-              // this container instead of the card that was tapped
+              setDragging(true)
               e.currentTarget.setPointerCapture?.(e.pointerId)
             }
             setDrag(Math.max(-CARD_SPACING, Math.min(CARD_SPACING, dx)))

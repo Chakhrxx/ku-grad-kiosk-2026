@@ -7,6 +7,7 @@ export const th: Messages = {
     // Thai has no spaces between words, so the line break is set by hand to keep the phrases whole
     tagline: 'ก้าวสู่ช่วงเวลาแห่งความภาคภูมิใจ\nกับชุดครุยที่อยู่เคียงข้างคุณในวันแห่งความสำเร็จ',
     start: 'เริ่มกันเลย',
+    tapToBegin: 'แตะที่หน้าจอเพื่อเริ่ม',
   },
   howTo: {
     title: 'วิธีใช้งาน',
@@ -63,7 +64,7 @@ export const th: Messages = {
     shutter: 'ถ่ายรูป',
     dressing: 'กำลังใส่ชุด…',
   },
-  generating: 'กำลังสร้างรูป…',
+  generating: ['กำลังสร้างรูป…', 'กำลังสวมชุดครุยให้คุณ…', 'กำลังจัดแสงให้สวยที่สุด…', 'กำลังเก็บรายละเอียดให้คมชัด…'],
   generatingScene: 'กำลังใส่ฉากหลัง…',
   result: {
     title: 'ช่วงเวลาแห่งความประทับใจ',

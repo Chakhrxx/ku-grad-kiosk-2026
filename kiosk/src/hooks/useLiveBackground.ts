@@ -88,11 +88,19 @@ export function useLiveBackground(
     let alpha = new Float32Array(0)
     let lastTime = -1
 
+    // once per new camera frame where the browser can tell (requestVideoFrameCallback): no frame segmented twice or
+    // skipped, and drawn in step with the camera; otherwise every display frame, skipping the unchanged ones
+    let frameCall = 0
+    let calledOn: HTMLVideoElement | null = null
     loadSegmenter()
       .then((seg) => {
         const tick = () => {
           if (closed) return
-          raf = requestAnimationFrame(tick)
+          const next = source.current
+          if (next && 'requestVideoFrameCallback' in next) {
+            calledOn = next
+            frameCall = next.requestVideoFrameCallback(tick)
+          } else raf = requestAnimationFrame(tick)
           const video = source.current
           const canvas = canvasRef.current
           if (!video || !canvas || video.readyState < 2 || video.currentTime === lastTime) return
@@ -126,6 +134,7 @@ export function useLiveBackground(
     return () => {
       closed = true
       cancelAnimationFrame(raf)
+      calledOn?.cancelVideoFrameCallback(frameCall)
     }
   }, [enabled, backgroundSrc, source, shift, mirror, behind])
 
@@ -237,6 +246,17 @@ export async function compositePhoto(
 }
 
 // ponytail: plain alpha blend; add colour matching to the scene if people look pasted-on
+let personCanvas: OffscreenCanvas | undefined
+/** The canvas the visitor is cut out on, cleared: one kept and reused, not a new one every frame. */
+function personLayer(W: number, H: number) {
+  if (personCanvas?.width !== W || personCanvas.height !== H) personCanvas = new OffscreenCanvas(W, H)
+  const p = personCanvas.getContext('2d')!
+  p.setTransform(1, 0, 0, 1, 0, 0)
+  p.globalCompositeOperation = 'source-over'
+  p.clearRect(0, 0, W, H)
+  return personCanvas
+}
+
 function draw(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -253,7 +273,7 @@ function draw(
   // will show them, not blown up to its full height; above and below is scene only, cut off later.
   const areaH = Math.min(H, Math.round((W * PHOTO_HEIGHT) / PHOTO_WIDTH))
   const areaY = (H - areaH) / 2
-  const person = new OffscreenCanvas(W, H)
+  const person = personLayer(W, H)
   const p = person.getContext('2d')!
   // high-quality resampling, and only once: placed (moved and scaled) as it is drawn, not scaled again after
   p.imageSmoothingQuality = 'high'
