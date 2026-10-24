@@ -66,6 +66,8 @@ export const en = {
     title: 'Your Impressionable Moment',
     caption: 'Keep this photo as a memento of your special day',
     scan: 'Scan the QR code to download your photo to your phone',
+    withScene: 'On the scene',
+    noScene: 'No scene',
     centred: 'In the middle',
     asShot: 'Where you stood',
   },

@@ -235,18 +235,15 @@ export function CameraScreen() {
     const matte = await matteFor(dressed)
     const t3 = performance.now()
     const finish = (ctx: CanvasRenderingContext2D) => drawPhotoHeader(ctx, header, title, photoDate(), { fade: false })
-    // two photos, for comparing: in the middle of the scene, and where they really stood (the crop put back in the
-    // viewfinder's frame, which then stands on the photo's bottom edge)
-    const backInView = (image: ImageBitmap | HTMLCanvasElement) => uncrop(image, rect, view, image.width / shot.width)
+    // two photos, the visitor picks one: on the scene, and in the room as the camera saw them, with no cut-out to
+    // lose the gown's details
+    const room = inTheRoom(dressed, rect, view)
+    await finish(room.getContext('2d')!)
     const photo = await Promise.all([
       compositePhoto(dressed, backgroundUrl(background), finish, scene?.subject_shift, { behind: drawHeaderFade, matte }),
-      compositePhoto(backInView(dressed), backgroundUrl(background), finish, scene?.subject_shift, {
-        behind: drawHeaderFade,
-        matte: matte && (await createImageBitmap(backInView(matte))),
-        centre: false,
-      }),
+      jpegOf(room),
     ])
-    if (steps) saveSteps(steps, photo) // debug: result1 in the middle, result2 where they stood
+    if (steps) saveSteps(steps, photo) // debug: result1 on the scene, result2 in the room
     console.info(
       `[photo] dressed in ${secondsSince(t0, t1)}, face in ${secondsSince(t1, t2)}, cut out in ${secondsSince(t2, t3)}, put on the scene in ${secondsSince(t3)}`,
     )
@@ -433,15 +430,43 @@ function aroundVisitor(view: HTMLCanvasElement, box: { x: number; y: number; w: 
  * `image` (made from aroundVisitor's crop, `scale` times its px) put back where the crop came from, on a clear
  * canvas the view's shape at that scale: the visitor where they stood, nothing elsewhere.
  */
-function uncrop(
-  image: ImageBitmap | HTMLCanvasElement,
-  rect: { x: number; y: number; w: number; h: number },
-  view: HTMLCanvasElement,
-  scale: number,
-) {
+/** Where the visitor's crop starts down the room photo: below the header, so it never covers their cap. */
+const ROOM_TOP = 0.13
+/** How much of the dressed crop's edges fades into the room around it, so no seam shows. */
+const ROOM_FEATHER = 0.06
+
+/**
+ * No scene: the visitor dressed, in the room where they stood, at the photo's 2:3. The dressed crop fills the height
+ * below the header; the camera's own picture of the room fills in beside and above it, the crop's edges faded in.
+ */
+function inTheRoom(dressed: HTMLCanvasElement, rect: { x: number; y: number; w: number; h: number }, view: HTMLCanvasElement) {
   const canvas = document.createElement('canvas')
-  Object.assign(canvas, { width: Math.round(view.width * scale), height: Math.round(view.height * scale) })
-  canvas.getContext('2d')!.drawImage(image, rect.x * scale, rect.y * scale, rect.w * scale, rect.h * scale)
+  Object.assign(canvas, { width: PHOTO_WIDTH, height: PHOTO_HEIGHT })
+  const ctx = canvas.getContext('2d')!
+  ctx.imageSmoothingQuality = 'high'
+  const top = ROOM_TOP * PHOTO_HEIGHT
+  const k = (PHOTO_HEIGHT - top) / rect.h // view px to photo px
+  const left = rect.x + rect.w / 2 - PHOTO_WIDTH / k / 2 // the photo's left edge, in view px, centred on the visitor
+  ctx.fillStyle = '#fff' // past the camera's edges, if the visitor stood near one
+  ctx.fillRect(0, 0, PHOTO_WIDTH, PHOTO_HEIGHT)
+  ctx.drawImage(view, -left * k, top - rect.y * k, view.width * k, view.height * k)
+
+  const soft = asCanvas(dressed, true)
+  const s = soft.getContext('2d')!
+  s.globalCompositeOperation = 'destination-in'
+  const sides = s.createLinearGradient(0, 0, soft.width, 0)
+  sides.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  sides.addColorStop(ROOM_FEATHER, '#000')
+  sides.addColorStop(1 - ROOM_FEATHER, '#000')
+  sides.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  s.fillStyle = sides
+  s.fillRect(0, 0, soft.width, soft.height)
+  const topEdge = s.createLinearGradient(0, 0, 0, soft.height)
+  topEdge.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  topEdge.addColorStop(ROOM_FEATHER, '#000')
+  s.fillStyle = topEdge
+  s.fillRect(0, 0, soft.width, soft.height)
+  ctx.drawImage(soft, (rect.x - left) * k, top, rect.w * k, PHOTO_HEIGHT - top)
   return canvas
 }
 

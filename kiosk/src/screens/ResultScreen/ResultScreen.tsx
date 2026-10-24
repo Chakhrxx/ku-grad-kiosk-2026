@@ -13,6 +13,7 @@ export function ResultScreen() {
   // ponytail: test-only, while the solutions are compared; delete with the dropdown on the home screen
   const solution = getSolution()
   const solutionLabel = SOLUTIONS.find((o) => o.id === solution)?.label ?? solution
+  const batch = solution === 'vton-batch'
 
   return (
     <Screen
@@ -31,10 +32,11 @@ export function ResultScreen() {
       }
     >
       {alternate ? (
-        // vton-batch, for comparing: in the middle of the scene and where they stood, each with its own QR
+        // two, each with its own QR, so the visitor keeps whichever they like. vton-batch: on the scene and without
+        // it (no cut-out, so every detail of the gown); vton-live: in the middle of the scene and where they stood
         <div className="flex gap-6">
-          <Photo photo={result} label={t.result.centred} solution={solutionLabel} small />
-          <Photo photo={alternate} label={t.result.asShot} solution={solutionLabel} small />
+          <Photo photo={result} label={batch ? t.result.withScene : t.result.centred} solution={solutionLabel} small />
+          <Photo photo={alternate} label={batch ? t.result.noScene : t.result.asShot} solution={solutionLabel} small />
         </div>
       ) : (
         <Photo photo={result} solution={solutionLabel} />
