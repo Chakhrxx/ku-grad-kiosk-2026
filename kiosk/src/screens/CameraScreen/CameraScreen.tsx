@@ -445,9 +445,12 @@ function inTheRoom(dressed: HTMLCanvasElement, rect: { x: number; y: number; w: 
   const ctx = canvas.getContext('2d')!
   ctx.imageSmoothingQuality = 'high'
   const top = ROOM_TOP * PHOTO_HEIGHT
-  const k = (PHOTO_HEIGHT - top) / rect.h // view px to photo px
-  const left = rect.x + rect.w / 2 - PHOTO_WIDTH / k / 2 // the photo's left edge, in view px, centred on the visitor
-  ctx.fillStyle = '#fff' // past the camera's edges, if the visitor stood near one
+  // view px to photo px: the crop the full height below the header, or larger when the visitor stood so close that
+  // the room at that size would be narrower than the photo (white down both sides); then their feet go off the bottom
+  const k = Math.max((PHOTO_HEIGHT - top) / rect.h, PHOTO_WIDTH / view.width)
+  // the photo's left edge, in view px: centred on the visitor, but kept on the room so neither side runs past it
+  const left = Math.min(Math.max(0, rect.x + rect.w / 2 - PHOTO_WIDTH / k / 2), view.width - PHOTO_WIDTH / k)
+  ctx.fillStyle = '#fff' // above the camera's top edge, under the header
   ctx.fillRect(0, 0, PHOTO_WIDTH, PHOTO_HEIGHT)
   ctx.drawImage(view, -left * k, top - rect.y * k, view.width * k, view.height * k)
 
@@ -466,7 +469,7 @@ function inTheRoom(dressed: HTMLCanvasElement, rect: { x: number; y: number; w: 
   topEdge.addColorStop(ROOM_FEATHER, '#000')
   s.fillStyle = topEdge
   s.fillRect(0, 0, soft.width, soft.height)
-  ctx.drawImage(soft, (rect.x - left) * k, top, rect.w * k, PHOTO_HEIGHT - top)
+  ctx.drawImage(soft, (rect.x - left) * k, top, rect.w * k, rect.h * k)
   return canvas
 }
 

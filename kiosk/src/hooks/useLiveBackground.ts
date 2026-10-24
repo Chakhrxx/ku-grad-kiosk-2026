@@ -201,8 +201,14 @@ async function composeScene(
   let tight: HTMLCanvasElement
   let body: Box | null = null
   if (matte) {
+    // the matting model cuts out whatever stands out, not only people: a scene's big logo too. Only what is near the
+    // person the kiosk's segmenter sees is kept, its coarse mask grown well past them so tassels and sleeves stay
+    const near = segmentStill(seg, content).tight
     tight = canvasOf(matte.width, matte.height)
-    tight.getContext('2d')!.drawImage(matte, 0, 0)
+    const t = tight.getContext('2d')!
+    t.drawImage(matte, 0, 0)
+    t.globalCompositeOperation = 'destination-in'
+    t.drawImage(grow(near, Math.max(2, near.width / 20)), 0, 0, tight.width, tight.height)
     body = boxOfAlpha(tight, image.width)
   } else {
     ;({ tight, body } = segmentStill(seg, content))
