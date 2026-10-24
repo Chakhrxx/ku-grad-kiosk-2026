@@ -205,7 +205,7 @@ gcloud iam service-accounts add-iam-policy-binding $SA --project $PROJECT \
   --role roles/iam.workloadIdentityUser --member "principalSet://iam.googleapis.com/$POOL/attribute.repository/$REPO"
 ```
 
-แล้วใน GitHub: Settings → Environments → สร้าง `production` (ใส่ผู้อนุมัติก่อน deploy ได้) แล้วเพิ่ม variables
+แล้วใน GitHub: Settings → Secrets and variables → Actions → แท็บ Variables เพิ่ม repository variables
 
 | Variable | ค่า |
 |---|---|

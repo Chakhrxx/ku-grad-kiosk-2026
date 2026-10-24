@@ -1,8 +1,8 @@
 # Production deploy (docs/deploy-firebase.md): the backend to Cloud Run, the kiosk to Firebase Hosting.
 # Run by hand from the Actions tab until that plan's section 4 is done (photos still go to the instance's disk).
 #
-# Needs, on the repository's "production" environment:
-#   variables  GCP_PROJECT, GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, PUBLIC_URL
+# Needs, as repository variables (Settings → Secrets and variables → Actions → Variables):
+#   GCP_PROJECT, GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, PUBLIC_URL
 #   and in Google Cloud: the secret decart-api-key (Secret Manager). No keys live in GitHub: it signs in to Google
 #   with Workload Identity Federation.
 name: Deploy
@@ -25,7 +25,6 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
 
