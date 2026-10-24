@@ -1,0 +1,10 @@
+# Kept out of the image: above all .env, which holds the Decart key (Cloud Run gets it from Secret Manager)
+
+.env
+.venv
+data
+tests
+**/__pycache__
+*.egg-info
+.pytest_cache
+.ruff_cache

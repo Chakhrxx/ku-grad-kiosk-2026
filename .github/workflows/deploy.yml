@@ -1,0 +1,59 @@
+# Production deploy (docs/deploy-firebase.md): the backend to Cloud Run, the kiosk to Firebase Hosting.
+# Run by hand from the Actions tab until that plan's section 4 is done (photos still go to the instance's disk).
+#
+# Needs, on the repository's "production" environment:
+#   variables  GCP_PROJECT, GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, PUBLIC_URL
+#   and in Google Cloud: the secret decart-api-key (Secret Manager). No keys live in GitHub: it signs in to Google
+#   with Workload Identity Federation.
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # to sign in to Google Cloud
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  REGION: asia-southeast1
+  SERVICE: ku-grad-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # 2 vCPU / 2 GiB, more than the plan's first guess: the backend now also cuts the visitor out (IS-Net) and
+      # sharpens (Real-ESRGAN) on CPU
+      - name: Backend to Cloud Run
+        run: >
+          gcloud run deploy "$SERVICE" --source backend --project "${{ vars.GCP_PROJECT }}" --region "$REGION"
+          --cpu 2 --memory 2Gi --concurrency 10 --max-instances 5 --timeout 60
+          --set-secrets DECART_API_KEY=decart-api-key:latest
+          --set-env-vars PUBLIC_URL=${{ vars.PUBLIC_URL }},SAVE_STEPS=false
+          --allow-unauthenticated --quiet
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+      - name: Build the kiosk
+        working-directory: kiosk
+        run: bun install --frozen-lockfile && bun run build
+      # the scenes and tiles the kiosk shows come straight from Hosting's CDN, not through the backend
+      - name: Scenes and tiles into the site
+        run: mkdir -p kiosk/dist/assets && cp -r backend/assets/backgrounds backend/assets/tiles kiosk/dist/assets/
+
+      - name: Kiosk to Firebase Hosting
+        run: npx --yes firebase-tools@14 deploy --only hosting --project "${{ vars.GCP_PROJECT }}" --non-interactive

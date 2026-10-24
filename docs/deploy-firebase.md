@@ -1,7 +1,7 @@
 # Deploy plan: Firebase / Google Cloud
 
 แผนเอา KU Grad Kiosk ขึ้น production บน Firebase (Blaze plan) + Google Cloud
-สถานะ: **แผน ยังไม่ได้ลงมือ** — มีโค้ดที่ต้องแก้ก่อน deploy (หัวข้อ 4)
+สถานะ: **CI/CD พร้อมแล้ว ยังไม่ได้ deploy จริง** มีโค้ดที่ต้องแก้ก่อน deploy (หัวข้อ 4) และต้องตั้ง Google Cloud ครั้งแรก (หัวข้อ 9)
 
 ---
 
@@ -83,14 +83,15 @@ Region: **asia-southeast1 (Singapore)** ทุกตัว — ใกล้ไ�
    - `photo_path`/`get_photo` → stream จาก bucket
    - `sweep` → ลบทิ้ง (bucket lifecycle ลบให้) เหลือแค่นับ `photos` ที่ `created_at` > 24 ชม. ด้วย Firestore `count()`
    - `consents` → Firestore
-2. **Dockerfile** สำหรับ backend (`uvicorn app.main:app --host 0.0.0.0 --port $PORT`) ใส่ `assets/` เข้า image ด้วย (ใช้ทำ `/api/gown` และกรอบรูป)
+2. ~~**Dockerfile** สำหรับ backend~~ เสร็จแล้ว: [backend/Dockerfile](../backend/Dockerfile) ใส่ `assets/`, `models/` และโหลด model ตัดคน (IS-Net 179MB) เข้า image ตอน build
 3. **กันคนนอกยิง API** — ตอนนี้ใครก็ได้ที่รู้ URL ขอ token Decart ได้ = เสียเงินเรา
    - ตู้ login Firebase Auth (account ต่อตู้ ตั้งครั้งเดียวตอนติดตั้ง) ส่ง ID token มากับ `/api/consent`, `/api/realtime-token`, `/api/generate`
    - backend ตรวจด้วย `firebase-admin`
    - เพิ่มเพดานจำนวน token ต่อวันใน backend (คล้าย MAX_PER_DAY)
 4. **จำกัดเวลา stream** — stream Decart คิดเงินทุกวินาทีที่อยู่หน้ากล้อง ถ้าคนเดินหนีค้างหน้ากล้องจะรันจน idle timeout (60 วิ) ควรตัด stream เมื่อเกินเช่น 45 วิ หรือลด idle timeout เฉพาะหน้ากล้อง
 5. **Config** — `PUBLIC_URL` = custom domain, เพิ่ม `STORAGE_BUCKET`; เลิกเสิร์ฟ `kiosk/dist` จาก FastAPI ใน production (Hosting ทำแทน — เก็บไว้ใช้ตอน dev ได้)
-6. **Build script** — copy `backend/assets/{backgrounds,tiles}` เข้า `kiosk/dist/assets` ก่อน `firebase deploy`
+6. ~~**Build script**~~ เสร็จแล้ว: workflow deploy copy `backend/assets/{backgrounds,tiles}` เข้า `kiosk/dist/assets` ให้
+7. **Spec Cloud Run** — backend ตอนนี้ตัดคน (IS-Net) และเพิ่มความคม (Real-ESRGAN) บน CPU ด้วย workflow เลยตั้งไว้ 2 vCPU / 2 GiB / concurrency 10 แทนค่าในหัวข้อ 3.1 ควรวัดจริงก่อนวันงาน
 
 ## 5. ขั้นตอน deploy (หลังแก้หัวข้อ 4)
 
@@ -172,3 +173,43 @@ cd kiosk && bun run build && cd .. && firebase deploy --only hosting
 3. Google Cloud project / billing account ของใคร (KU หรือบริษัท)
 4. งบ Decart ต่อวัน — จะให้ระบบหยุดรับคนเมื่อถึงเพดานไหม
 5. เก็บ consent record กี่วัน (รูปลบ 7 วัน แต่หลักฐาน consent อาจต้องเก็บนานกว่า — ถาม DPO)
+
+## 9. CI/CD (GitHub Actions)
+
+| Workflow | ทำงานเมื่อ | ทำอะไร |
+|---|---|---|
+| [ci.yml](../.github/workflows/ci.yml) | ทุก push และ pull request | kiosk: lint, test, typecheck + build · backend: ruff, pytest |
+| [deploy.yml](../.github/workflows/deploy.yml) | **กดเองเท่านั้น** (Actions → Deploy → Run workflow) | backend → Cloud Run, kiosk + ฉาก/tiles → Firebase Hosting ([firebase.json](../firebase.json)) |
+
+deploy ยังเป็นแบบกดเอง จนกว่าหัวข้อ 4 จะเสร็จ (ตอนนี้รูปยังเก็บบน disk ของ instance ซึ่งหายได้)
+เสร็จแล้วค่อยเปลี่ยนเป็น deploy อัตโนมัติเมื่อ merge เข้า `main`
+
+ตั้งค่าครั้งแรก (ไม่มี key เก็บใน GitHub เลย GitHub ขอสิทธิ์ Google ผ่าน Workload Identity Federation):
+
+```sh
+PROJECT=ku-grad-kiosk-2026
+REPO=Chakhrxx/ku-grad-kiosk-2026
+gcloud iam service-accounts create github-deploy --project $PROJECT
+SA=github-deploy@$PROJECT.iam.gserviceaccount.com
+for role in run.admin cloudbuild.builds.editor artifactregistry.admin storage.admin \
+            iam.serviceAccountUser secretmanager.secretAccessor firebasehosting.admin serviceusage.serviceUsageConsumer; do
+  gcloud projects add-iam-policy-binding $PROJECT --member serviceAccount:$SA --role roles/$role
+done
+gcloud iam workload-identity-pools create github --location global --project $PROJECT
+gcloud iam workload-identity-pools providers create-oidc github --location global --workload-identity-pool github \
+  --project $PROJECT --issuer-uri https://token.actions.githubusercontent.com \
+  --attribute-mapping google.subject=assertion.sub,attribute.repository=assertion.repository \
+  --attribute-condition "assertion.repository == '$REPO'"
+POOL=$(gcloud iam workload-identity-pools describe github --location global --project $PROJECT --format 'value(name)')
+gcloud iam service-accounts add-iam-policy-binding $SA --project $PROJECT \
+  --role roles/iam.workloadIdentityUser --member "principalSet://iam.googleapis.com/$POOL/attribute.repository/$REPO"
+```
+
+แล้วใน GitHub: Settings → Environments → สร้าง `production` (ใส่ผู้อนุมัติก่อน deploy ได้) แล้วเพิ่ม variables
+
+| Variable | ค่า |
+|---|---|
+| `GCP_PROJECT` | project id |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<เลข project>/locations/global/workloadIdentityPools/github/providers/github` |
+| `GCP_DEPLOY_SERVICE_ACCOUNT` | `github-deploy@<project>.iam.gserviceaccount.com` |
+| `PUBLIC_URL` | custom domain ที่ QR ชี้ไป เช่น `https://kiosk.example.com` |
