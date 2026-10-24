@@ -27,20 +27,11 @@ def test_without_a_frame_the_photo_passes_through(tmp_path: Path):
     assert out.size == (90, 160) and out.getpixel((45, 80))[1] > 100
 
 
-def test_save_steps_keeps_both_stages(tmp_path: Path, monkeypatch):
-    from app.config import Settings
-    from app.services import frame
+def test_steps_folders_are_numbered_per_solution(tmp_path: Path):
+    from app.services.frame import new_steps_folder
 
-    monkeypatch.setattr(frame, "get_settings", lambda: Settings(_env_file=None, data_dir=tmp_path, save_steps=True))
-    add_frame(jpeg((0, 128, 0)), tmp_path / "none.png")
-    (folder,) = (tmp_path / "steps").iterdir()
-    assert sorted(p.name for p in folder.iterdir()) == ["1-from-kiosk.jpg", "2-framed.jpg"]
-
-
-def test_no_steps_kept_by_default(tmp_path: Path, monkeypatch):
-    from app.config import Settings
-    from app.services import frame
-
-    monkeypatch.setattr(frame, "get_settings", lambda: Settings(_env_file=None, data_dir=tmp_path))
-    add_frame(jpeg((0, 128, 0)), tmp_path / "none.png")
-    assert not (tmp_path / "steps").exists()
+    assert new_steps_folder(tmp_path, "vton-batch", "outfit: bachelor/engineering") == "no-preview-bg/01"
+    assert new_steps_folder(tmp_path, "vton-batch", "") == "no-preview-bg/02"
+    assert new_steps_folder(tmp_path, "vton-live", "") == "preview-bg/01"
+    info = (tmp_path / "steps" / "no-preview-bg" / "01" / "info.txt").read_text()
+    assert "outfit: bachelor/engineering" in info

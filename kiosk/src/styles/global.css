@@ -73,6 +73,15 @@
     }
   }
 
+  /* Dropdown menu: drops from its key, a quick fade and settle */
+  --animate-menu-in: menu-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.96);
+    }
+  }
+
   /* Game-style word entrance: bursts in oversized, settles, then a playful wiggle */
   --animate-pop-in: pop-in 900ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   @keyframes pop-in {

@@ -3,12 +3,11 @@ header drawn); an optional frame PNG per scene can still go on top."""
 
 import io
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 
 from PIL import Image
-
-from app.config import get_settings
 
 log = logging.getLogger("uvicorn.error")
 
@@ -21,15 +20,23 @@ def add_frame(photo: bytes, frame: Path) -> bytes:
         out = Image.alpha_composite(out.convert("RGBA"), overlay).convert("RGB")
     buf = io.BytesIO()
     out.save(buf, "JPEG", quality=92)
-    if get_settings().save_steps:
-        save_steps(photo, buf.getvalue())
     return buf.getvalue()
 
 
-def save_steps(received: bytes, framed: bytes) -> None:
-    """Debug: keep both stages of one photo in its own folder (SAVE_STEPS=true)."""
-    folder = get_settings().data_dir / "steps" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    folder.mkdir(parents=True)
-    (folder / "1-from-kiosk.jpg").write_bytes(received)
-    (folder / "2-framed.jpg").write_bytes(framed)
+# Debug folders, one per solution being compared, then 01, 02, ... per shot (to share with the team)
+STEPS_DIRS = {"vton-live": "preview-bg", "vton-batch": "no-preview-bg"}
+_steps_lock = threading.Lock()
+
+
+def new_steps_folder(data_dir: Path, solution: str, about: str) -> str:
+    """Debug (SAVE_STEPS): the next numbered folder for this solution's shots, with `about` as its info.txt; its
+    path under data/steps ("no-preview-bg/03")."""
+    group = data_dir / "steps" / STEPS_DIRS.get(solution, "other")
+    with _steps_lock:
+        group.mkdir(parents=True, exist_ok=True)
+        taken = [int(d.name) for d in group.iterdir() if d.is_dir() and d.name.isdigit()]
+        folder = group / f"{max(taken, default=0) + 1:02d}"
+        folder.mkdir()
+    (folder / "info.txt").write_text(f"{datetime.now():%Y-%m-%d %H:%M:%S}\n{about}\n")
     log.info("steps saved to %s", folder)
+    return f"{group.name}/{folder.name}"

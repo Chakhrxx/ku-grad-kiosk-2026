@@ -31,6 +31,8 @@ interface TryOn {
   level: string
   item: string
   onError: () => void
+  /** false: no stream and nothing fetched for it, for the image-model mode. */
+  enabled?: boolean
 }
 
 /** Log how long each step of opening the try-on stream takes (browser console). */
@@ -44,25 +46,27 @@ function stopwatch() {
  * Connected only while the hook is mounted with a camera, since the stream is billed per second.
  * The gown reference and the first token are fetched as soon as the screen opens, alongside the camera, not after it.
  */
-export function useTryOnStream({ camera, session, level, item, onError }: TryOn) {
+export function useTryOnStream({ camera, session, level, item, onError, enabled = true }: TryOn) {
   const outputRef = useRef<HTMLVideoElement>(null)
   const handleError = useEffectEvent(onError)
   const gown = useMemo(
     () =>
-      fetch(gownUrl(level, item), { cache: 'no-store' }).then((res) => {
-        if (!res.ok) throw new Error(`gown reference ${res.status}`)
-        return res.blob()
-      }),
-    [level, item],
+      enabled
+        ? fetch(gownUrl(level, item), { cache: 'no-store' }).then((res) => {
+            if (!res.ok) throw new Error(`gown reference ${res.status}`)
+            return res.blob()
+          })
+        : undefined,
+    [enabled, level, item],
   )
   // ponytail: the token lives 60s and the camera opens in a second or two; later calls (reconnects) mint a fresh one
-  const token = useMemo(() => getRealtimeToken(session), [session])
+  const token = useMemo(() => (enabled ? getRealtimeToken(session) : undefined), [enabled, session])
   // a failed prefetch is reported when the stream needs it, not as an unhandled rejection now
-  useEffect(() => void gown.catch(() => {}), [gown])
-  useEffect(() => void token.catch(() => {}), [token])
+  useEffect(() => void gown?.catch(() => {}), [gown])
+  useEffect(() => void token?.catch(() => {}), [token])
 
   useEffect(() => {
-    if (!camera) return
+    if (!camera || !gown) return
     let rt: RealTimeClient | undefined
     let closed = false
     const lap = stopwatch()

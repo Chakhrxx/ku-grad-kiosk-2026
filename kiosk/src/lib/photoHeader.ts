@@ -44,8 +44,35 @@ function loadLogo() {
 export const photoDate = (d = new Date()) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' }).format(d)
 
-/** The photo's header: white fading into the scene, KU logo, title (the place), campus and date. */
-export async function drawPhotoHeader(ctx: CanvasRenderingContext2D, layout: HeaderLayout, title: string, date: string) {
+/**
+ * The header's white, solid under it and fading into the scene; drawn under the visitor so their head stays clear.
+ * Solid from the very top, not just from where the fade starts: a scene showing above it would leave a hard edge
+ * that the try-on model smudges into a coloured line just under the header.
+ */
+export function drawHeaderFade(ctx: CanvasRenderingContext2D) {
+  ctx.save()
+  ctx.scale(ctx.canvas.width / 1080, ctx.canvas.width / 1080)
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, 1080, WHITE_END)
+  const fade = ctx.createLinearGradient(0, WHITE_END, 0, FADE_END)
+  fade.addColorStop(0, 'rgba(255, 255, 255, 1)')
+  fade.addColorStop(1, 'rgba(255, 255, 255, 0)')
+  ctx.fillStyle = fade
+  ctx.fillRect(0, WHITE_END, 1080, FADE_END - WHITE_END)
+  ctx.restore()
+}
+
+/**
+ * The photo's header: white fading into the scene, KU logo, title (the place), campus and date.
+ * `fade: false` leaves the fade out, for a photo that drew it under the visitor already (drawHeaderFade).
+ */
+export async function drawPhotoHeader(
+  ctx: CanvasRenderingContext2D,
+  layout: HeaderLayout,
+  title: string,
+  date: string,
+  { fade = true } = {},
+) {
   const { logo: at, title: t, campus: c, date: d } = layout
   const [img] = await Promise.all([
     loadLogo(),
@@ -57,11 +84,10 @@ export async function drawPhotoHeader(ctx: CanvasRenderingContext2D, layout: Hea
   ctx.scale(ctx.canvas.width / 1080, ctx.canvas.width / 1080)
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, 1080, WHITE_END)
-  const fade = ctx.createLinearGradient(0, WHITE_END, 0, FADE_END)
-  fade.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  fade.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  ctx.fillStyle = fade
-  ctx.fillRect(0, WHITE_END, 1080, FADE_END - WHITE_END)
+  ctx.restore()
+  if (fade) drawHeaderFade(ctx)
+  ctx.save()
+  ctx.scale(ctx.canvas.width / 1080, ctx.canvas.width / 1080)
 
   ctx.drawImage(img, at.x, at.y, (at.height * img.naturalWidth) / img.naturalHeight, at.height)
   ctx.fillStyle = COLOR

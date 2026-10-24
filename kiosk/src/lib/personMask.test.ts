@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { updatePersonAlpha } from './personMask'
+import { personOpacity, updatePersonAlpha } from './personMask'
 
 const settle = (score: number, frames = 6) => {
   const alpha = new Float32Array(1)
@@ -20,5 +20,12 @@ describe('updatePersonAlpha', () => {
     const alpha = new Float32Array([1])
     updatePersonAlpha(new Float32Array([1]), alpha) // this frame says "background"
     expect(alpha[0]).toBeGreaterThan(0.4)
+  })
+})
+
+describe('personOpacity', () => {
+  it('gives a still photo the same solid person and clear background in one go', () => {
+    expect(personOpacity(1 - 0.7)).toBe(1)
+    expect(personOpacity(1 - 0.15)).toBe(0)
   })
 })

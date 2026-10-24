@@ -41,9 +41,10 @@ backend/                        Python 3.12+ + FastAPI (pyproject.toml, pytest, 
 cd backend
 python3 -m venv .venv && .venv/bin/pip install -e . --group dev
 cp .env.example .env   # then fill in DECART_API_KEY
+.venv/bin/python -m app.services.matte   # once: the 179 MB matting model into data/models (else the first photo fetches it)
 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# kiosk (second terminal), http://172.20.10.7:5173
+# kiosk (second terminal), http://localhost:5173
 cd kiosk && bun install && bun dev
 ```
 
@@ -61,7 +62,7 @@ Set these in the shell or in `backend/.env` (see `backend/.env.example`). API do
 | `PUBLIC_URL` | request host | Base URL the QR code points to |
 | `MAX_PER_DAY` | 3000 | Photo cap per 24 hours |
 | `DATA_DIR` | `backend/data` | Photos (deleted after 7 days) and consent records |
-| `SAVE_STEPS` | false | Debug: keep each photo as received and framed in `data/steps/`; off for real visitors |
+| `SAVE_STEPS` | false | Debug, to share with the team: each shot in `data/steps/preview-bg/01, 02, …` or `data/steps/no-preview-bg/…` (`dressed.mp4`, `result1.jpg` in the middle of the scene, `result2.jpg` where they stood, `info.txt`); off for real visitors |
 
 ## Install on a kiosk
 
