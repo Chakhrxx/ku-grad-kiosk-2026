@@ -1,5 +1,6 @@
 import httpx
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from app.services import dress, realtime
 
@@ -160,3 +161,10 @@ def test_upscale_runs_the_real_model_x4_from_720_wide():
     Image.new("RGB", (1080, 1920), (90, 120, 30)).save(buf, "JPEG")
     out = Image.open(io.BytesIO(upscale(buf.getvalue())))
     assert out.size == (2880, 4 * round(1920 * 720 / 1080))
+
+
+def test_uploads_over_the_limit_and_a_missing_key_are_refused(settings, client: TestClient, consented: str):
+    settings.max_upload_bytes = 3
+    assert client.post("/api/matte", files=CLIP, data={"session": consented}).status_code == 413
+    settings.decart_api_key = SecretStr("")
+    assert client.post("/api/realtime-token", json={"session": consented}).status_code == 500
