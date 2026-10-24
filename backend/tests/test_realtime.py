@@ -149,7 +149,7 @@ def test_upscale_needs_consent_and_returns_the_sharper_frame(client: TestClient,
     assert r.status_code == 200 and r.content == b"sharp-jpeg"
 
 
-def test_upscale_runs_the_real_model_x4_from_480_wide():
+def test_upscale_runs_the_real_model_x4_from_720_wide():
     import io
 
     from PIL import Image
@@ -157,6 +157,6 @@ def test_upscale_runs_the_real_model_x4_from_480_wide():
     from app.services.upscale import upscale
 
     buf = io.BytesIO()
-    Image.new("RGB", (720, 1280), (90, 120, 30)).save(buf, "JPEG")
+    Image.new("RGB", (1080, 1920), (90, 120, 30)).save(buf, "JPEG")
     out = Image.open(io.BytesIO(upscale(buf.getvalue())))
-    assert out.size == (1920, 4 * round(1280 * 480 / 720))
+    assert out.size == (2880, 4 * round(1920 * 720 / 1080))

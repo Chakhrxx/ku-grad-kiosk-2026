@@ -10,8 +10,9 @@ from PIL import Image
 from app.config import BACKEND_DIR
 
 MODEL = BACKEND_DIR / "models" / "realesr-general-x4v3.onnx"
-# from this width: about 4 s on a CPU, and plenty for the photo; from 360 it looks painted, from 720 it takes 12 s
-INPUT_WIDTH = 480
+# the model's whole 720p frame, none of its detail thrown away first: about 12 s on a CPU (480 took 4 s but left the
+# visitor visibly softer than the scene; 360 looks painted)
+INPUT_WIDTH = 720
 
 
 @lru_cache

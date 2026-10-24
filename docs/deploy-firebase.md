@@ -111,7 +111,7 @@ gcloud storage buckets update gs://<bucket> --lifecycle-file=lifecycle.json
 
 # 1) backend
 gcloud run deploy ku-grad-api --source backend --region asia-southeast1 \
-  --cpu 1 --memory 1Gi --concurrency 20 --min-instances 1 --max-instances 5 --timeout 30 \
+  --cpu 4 --memory 4Gi --concurrency 20 --min-instances 1 --max-instances 5 --timeout 60 \
   --set-secrets DECART_API_KEY=decart-api-key:latest \
   --set-env-vars PUBLIC_URL=https://<domain>,STORAGE_BUCKET=<bucket>,SAVE_STEPS=false
 
