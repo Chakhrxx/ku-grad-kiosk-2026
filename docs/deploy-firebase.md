@@ -8,33 +8,36 @@
 ## 1. ภาพรวม
 
 ```
- ตู้ kiosk (Chrome kiosk mode)                      มือถือคนสแกน QR
+ ตู้ kiosk (Chrome kiosk mode, กล้อง Femto Bolt 4K)   มือถือคนสแกน QR
  ├─ โหลดหน้าเว็บ + MediaPipe ──────┐                       │
- ├─ WebRTC stream กล้อง ⇄ Decart   │                       │
- │   (ใส่ชุด realtime, ตรงไม่ผ่านเรา) │                       │
  └─ /api/* ───────────────┐        ▼                       ▼
                           │   Firebase Hosting (CDN)  ◄────┘  /p/{id}, /photos/{id}.jpg
                           │    ├─ kiosk/dist, /assets  (static)
                           └──► └─ rewrite /api /photos /p ──► Cloud Run: FastAPI (asia-southeast1)
+                                                              ├─ /api/dress ⇄ Decart batch job (ใส่ชุดตอนถ่าย)
+                                                              ├─ /api/matte, /api/upscale: โมเดล ONNX บน CPU
                                                               ├─ Secret Manager: DECART_API_KEY
                                                               ├─ Cloud Storage: รูป (ลบเองหลัง 7 วัน)
                                                               └─ Firestore: consent, นับรูปต่อวัน
 ```
 
-งานหนัก (stream ใส่ชุด, ตัดคนออกจากฉาก, ประกอบรูป) ทำ **บนเครื่องตู้** ทั้งหมด
-backend เบามาก: ออก token ให้ Decart, ใส่กรอบรูป, เก็บรูป, ทำ QR → spec server ต่ำ แต่ **spec เครื่องตู้สำคัญ**
+ตอนกดถ่าย ตู้อัดคลิป 1 วิ ส่งไป `/api/dress` (Decart ใส่ชุดเป็น batch job) → ดึงเฟรมมาใส่หน้าจริงจากกล้อง
+→ `/api/upscale` (Real-ESRGAN ขยาย ×4) → `/api/matte` (IS-Net ตัดคนออกจากห้อง) → ประกอบกับฉาก **บนตู้** → `/api/generate` เก็บรูป ทำ QR
+
+backend **ไม่เบาแล้ว**: ตัดคนและขยายภาพบน CPU (หัวข้อ 3.1) ส่วนตู้ก็ยังต้องแรง เพราะรัน MediaPipe, อัดคลิป และประกอบรูปจากภาพ 4K
+ใช้แค่ Decart **batch** ไม่มี realtime stream แล้ว (โหมด `stream` ปิดใน [solution.ts](../kiosk/src/lib/solution.ts) โค้ดยังเก็บไว้)
 
 ## 2. Service ที่ใช้
 
 | Service | ใช้ทำอะไร | หมายเหตุ |
 |---|---|---|
-| **Firebase Hosting** | เสิร์ฟหน้า kiosk (`kiosk/dist` ~43MB รวม MediaPipe), `/assets` (ฉาก, รูปชุด, tiles ~6MB) ผ่าน CDN และ rewrite `/api/**`, `/photos/**`, `/p/**` ไป Cloud Run | ผูก custom domain + SSL ฟรี (domain นี้คือที่ QR ชี้ไป) timeout ของ rewrite = 60 วิ (เราใช้ไม่ถึง) |
-| **Cloud Run** | FastAPI backend (container) | request-based billing จ่ายเฉพาะตอนมี request |
+| **Firebase Hosting** | เสิร์ฟหน้า kiosk (`kiosk/dist` ~43MB รวม MediaPipe), `/assets` (ฉาก, รูปชุด, tiles ~6MB) ผ่าน CDN และ rewrite `/api/**`, `/photos/**`, `/p/**` ไป Cloud Run | ผูก custom domain + SSL ฟรี (domain นี้คือที่ QR ชี้ไป) timeout ของ rewrite = **60 วิ** ทุก `/api` ต้องเสร็จในนี้ (หัวข้อ 3.1) |
+| **Cloud Run** | FastAPI backend (container) รวมโมเดล IS-Net + Real-ESRGAN ใน image | request-based billing จ่ายตอนมี request + ค่า idle ของ min instance |
 | **Artifact Registry** | เก็บ container image ของ backend | สร้างอัตโนมัติตอน `gcloud run deploy --source` |
 | **Secret Manager** | `DECART_API_KEY` | mount เป็น env ให้ Cloud Run ห้ามใส่ใน image / git |
 | **Cloud Storage** (bucket ของ Firebase Storage) | รูปที่ถ่าย `photos/<id>.jpg` | private, lifecycle rule **ลบเมื่ออายุ 7 วัน** (PDPA) |
 | **Firestore** | `consents/{session}`, `photos/{id}` (เวลาสร้าง) ไว้นับ MAX_PER_DAY | ตั้ง TTL policy ลบ doc รูปหลัง 7 วันคู่กับ bucket |
-| **Firebase Authentication** | login ตู้ (1 account ต่อตู้) ให้เฉพาะตู้เรียก `/api/realtime-token` และ `/api/generate` ได้ | กันคนนอกยิง API ให้เราเสียเงิน Decart (หัวข้อ 4.3) |
+| **Firebase Authentication** | login ตู้ (1 account ต่อตู้) ให้เฉพาะตู้เรียก `/api` ที่เสียเงินได้ (`/api/dress`, `/api/generate`, ...) | กันคนนอกยิง API ให้เราเสียเงิน Decart (หัวข้อ 4.3) |
 | **Cloud Logging / Monitoring** | log, alert เมื่อ 5xx หรือ latency สูง | มีให้อยู่แล้ว |
 | **Cloud Billing budget alert** | เตือนเมื่อค่าใช้จ่ายเกินงบ | ตั้งทั้งฝั่ง GCP และดู usage ฝั่ง Decart |
 
@@ -49,13 +52,18 @@ Region: **asia-southeast1 (Singapore)** ทุกตัว — ใกล้ไ�
 
 | ค่า | แนะนำ | เหตุผล |
 |---|---|---|
-| CPU | **1 vCPU** | งานต่อ request คือเปิด JPEG 1080×1920 ใส่กรอบ เซฟ (~0.2–0.5 วิ) |
-| Memory | **1 GiB** | Pillow ใช้ ~30–50MB ต่อรูป × concurrency |
-| Concurrency | **20** | |
-| Min instances | **1 ระหว่างวันงาน**, 0 นอกวันงาน | กัน cold start ตอนกดถ่าย (Python + Pillow start ~2–4 วิ) |
-| Max instances | **5** | 3,000 รูป/วัน ≈ ไม่ถึง 1 รูป/วินาทีตอน peak 1 instance ก็รับไหว ที่เหลือเผื่อ |
-| Timeout | 30 วิ | |
+| CPU | **4 vCPU** | upscale จาก 720p ใช้ ~12 วิบนเครื่อง dev (M1) และใช้ทุก core: CPU มากขึ้นเสร็จเร็วขึ้น ค่าต่อรูปแทบเท่าเดิม (คิดเป็น vCPU-วินาที) บวก matte อีกหลายวิ |
+| Memory | **4 GiB** | โมเดล IS-Net 179MB + Real-ESRGAN ค้างใน memory, ภาพผลลัพธ์ ×4 (2880×5120) ต่อ request |
+| Concurrency | **10** | งานกิน CPU: รับพร้อมกันมากไปจะแย่ง core จนเกิน timeout ให้ Cloud Run เพิ่ม instance แทน |
+| Min instances | **1 ระหว่างวันงาน**, 0 นอกวันงาน | กัน cold start (Python + โหลดโมเดล ONNX) workflow deploy ไม่แตะค่านี้ ต้องตั้งเอง (หัวข้อ 5) |
+| Max instances | **5** | 3,000 รูป/วัน ≈ ไม่ถึง 1 รูป/วินาทีตอน peak ที่เหลือเผื่อ |
+| Timeout | **60 วิ** | เท่ากับ timeout ของ Hosting rewrite ตั้งเกินไปก็ไม่ช่วย |
 | Region | asia-southeast1 | |
+
+**ยังไม่ได้วัดบน Cloud Run จริง** (vCPU ของ Cloud Run น่าจะช้ากว่า M1) หลัง deploy ดู log `[upscale] took`, `[matte] took`, `[dress] took`:
+
+- upscale ใกล้ 60 วิ → ลด `INPUT_WIDTH` ใน [upscale.py](../backend/app/services/upscale.py) หรือเพิ่ม CPU (ถ้า upscale ล้ม ตู้ใช้เฟรมเดิมที่ไม่คม)
+- `/api/dress` รอ Decart ได้ถึง 120 วิ (`TIMEOUT_S` ใน [dress.py](../backend/app/services/dress.py)) แต่ Hosting ตัดที่ 60 วิ job ที่ช้ากว่านั้นตู้จะได้ error
 
 ### 3.2 Storage / Firestore
 
@@ -64,16 +72,16 @@ Region: **asia-southeast1 (Singapore)** ทุกตัว — ใกล้ไ�
 
 ### 3.3 เครื่องตู้ (ฝั่ง client — สำคัญที่สุด)
 
-ตู้ต้องรับ WebRTC 720p จาก Decart + ตัดพื้นหลังด้วย GPU ทุกเฟรม พร้อมกัน
+ตู้ต้องตัดคนด้วย MediaPipe (GPU) ระหว่างโพสท่า (โหมด `vton-live` ทุกเฟรม), อัดคลิป MP4 และประกอบรูปจากภาพ 4K ของกล้อง
 
 | อุปกรณ์ | ขั้นต่ำที่แนะนำ |
 |---|---|
-| เครื่อง | Mini PC Intel Core i5 Gen 12+ (Iris Xe) / AMD Ryzen 5 7000+ (Radeon 680M+) หรือ Mac mini M1+ |
+| เครื่อง | **Asus Mini PC PN series** (ยังไม่ระบุรุ่นย่อย) ต้องเป็นรุ่น Intel Core i5 Gen 12+ / Core Ultra (Iris Xe ขึ้นไป) หรือ AMD Ryzen 5 7000+ (Radeon 680M+) เช่น PN64, PN65, PN53 — รุ่น Celeron / N100 (PN41, PN42) GPU อ่อนเกินไป |
 | RAM / Disk | 16GB / SSD 256GB |
 | Browser | Chrome stable, kiosk mode, เปิด hardware acceleration (WebGL ต้องใช้ได้) |
 | จอ | แนวตั้ง 1080×1920 touch (UI ออกแบบ 9:16) |
-| กล้อง | USB webcam ที่ให้ 1280×720 @30fps ได้ (เช่น Logitech C920/C922/Brio) **ติดตั้งแนวตั้งตรง** (โค้ดยังไม่รองรับกล้องหมุน) |
-| เน็ต | **สาย LAN**, ≥10 Mbps ขึ้น/ลง ต่อตู้, เสถียร; firewall ต้องปล่อย **WebRTC (UDP)** ไป Decart — เน็ตสถานที่จัดงานมักบล็อก ต้องทดสอบหน้างานก่อน |
+| กล้อง | **Orbbec Femto Bolt** (ใช้แค่กล้อง RGB 4K 3840×2160 แบบ UVC ไม่ใช้ depth) ต่อ USB 3 ตรงเข้าเครื่อง ไม่ผ่าน hub **ติดตั้งแนวตั้งตรง** (โค้ดยังไม่รองรับกล้องหมุน) |
+| เน็ต | **สาย LAN**, ≥10 Mbps ขึ้น/ลง ต่อตู้, เสถียร; ใช้แค่ HTTPS ไปที่ domain ของเรา (ไม่ต้องเปิด UDP) ต่อรูปส่งขึ้น ~5–10MB (คลิป, เฟรม) รับกลับ ~5MB |
 | แสง | ไฟหน้าคนแบบ soft ให้ตัดพื้นหลังได้คม |
 
 ## 4. โค้ดที่ต้องแก้ก่อน deploy
@@ -85,13 +93,13 @@ Region: **asia-southeast1 (Singapore)** ทุกตัว — ใกล้ไ�
    - `consents` → Firestore
 2. ~~**Dockerfile** สำหรับ backend~~ เสร็จแล้ว: [backend/Dockerfile](../backend/Dockerfile) ใส่ `assets/`, `models/` และโหลด model ตัดคน (IS-Net 179MB) เข้า image ตอน build
 3. **กันคนนอกยิง API** — ตอนนี้ใครก็ได้ที่รู้ URL ขอ token Decart ได้ = เสียเงินเรา
-   - ตู้ login Firebase Auth (account ต่อตู้ ตั้งครั้งเดียวตอนติดตั้ง) ส่ง ID token มากับ `/api/consent`, `/api/realtime-token`, `/api/generate`
+   - ตู้ login Firebase Auth (account ต่อตู้ ตั้งครั้งเดียวตอนติดตั้ง) ส่ง ID token มากับทุก `/api` ที่เสียเงิน: `/api/consent`, `/api/dress` (Decart job ละครั้ง), `/api/matte`, `/api/upscale` (CPU), `/api/generate`
    - backend ตรวจด้วย `firebase-admin`
    - เพิ่มเพดานจำนวน token ต่อวันใน backend (คล้าย MAX_PER_DAY)
-4. **จำกัดเวลา stream** — stream Decart คิดเงินทุกวินาทีที่อยู่หน้ากล้อง ถ้าคนเดินหนีค้างหน้ากล้องจะรันจน idle timeout (60 วิ) ควรตัด stream เมื่อเกินเช่น 45 วิ หรือลด idle timeout เฉพาะหน้ากล้อง
+4. ~~**จำกัดเวลา stream**~~ ไม่ต้องแล้ว: ไม่ใช้ realtime stream ค่า Decart คิดต่อการกดถ่าย (หัวข้อ 6)
 5. **Config** — `PUBLIC_URL` = custom domain, เพิ่ม `STORAGE_BUCKET`; เลิกเสิร์ฟ `kiosk/dist` จาก FastAPI ใน production (Hosting ทำแทน — เก็บไว้ใช้ตอน dev ได้)
 6. ~~**Build script**~~ เสร็จแล้ว: workflow deploy copy `backend/assets/{backgrounds,tiles}` เข้า `kiosk/dist/assets` ให้
-7. **Spec Cloud Run** — backend ตอนนี้ตัดคน (IS-Net) และเพิ่มความคม (Real-ESRGAN) บน CPU ด้วย workflow เลยตั้งไว้ 2 vCPU / 2 GiB / concurrency 10 แทนค่าในหัวข้อ 3.1 ควรวัดจริงก่อนวันงาน
+7. ~~**Spec Cloud Run**~~ ตั้งแล้ว 4 vCPU / 4 GiB / concurrency 10 ทั้งใน workflow และหัวข้อ 5 เหลือวัดเวลาจริง (หัวข้อ 3.1)
 
 ## 5. ขั้นตอน deploy (หลังแก้หัวข้อ 4)
 
@@ -111,7 +119,7 @@ gcloud storage buckets update gs://<bucket> --lifecycle-file=lifecycle.json
 
 # 1) backend
 gcloud run deploy ku-grad-api --source backend --region asia-southeast1 \
-  --cpu 4 --memory 4Gi --concurrency 20 --min-instances 1 --max-instances 5 --timeout 60 \
+  --cpu 4 --memory 4Gi --concurrency 10 --min-instances 1 --max-instances 5 --timeout 60 \
   --set-secrets DECART_API_KEY=decart-api-key:latest \
   --set-env-vars PUBLIC_URL=https://<domain>,STORAGE_BUCKET=<bucket>,SAVE_STEPS=false
 
@@ -145,20 +153,52 @@ cd kiosk && bun run build && cd .. && firebase deploy --only hosting
 
 ## 6. ค่าใช้จ่ายโดยประมาณ
 
-| รายการ | คิดยังไง | ประมาณ |
-|---|---|---|
-| **Decart realtime** | $0.02/วินาที ที่อยู่หน้ากล้อง; สมมติ 30–60 วิ/คน | **$0.60–1.20 ต่อคน** → 3,000 คน ≈ **$1,800–3,600/วัน** |
-| Cloud Run | 1 instance ค้าง (min=1) + request ไม่กี่พัน/วัน | หลักสิบ $/เดือนช่วงงาน, ~0 นอกงาน |
-| Cloud Storage | ~12GB สูงสุด | < $1/เดือน |
-| Firestore | ~6,000 writes/วัน | อยู่ใน/ใกล้ free tier |
-| Hosting | ตู้โหลดหน้าเว็บครั้งเดียวแล้ว cache, คนสแกนโหลดรูป ~0.5MB | ไม่กี่ $/เดือน |
+ค่าใช้จ่ายแทบทั้งหมด **คิดตามจำนวนรูป** วันไหนไม่มีคนถ่ายก็เกือบไม่เสีย
 
-**ต้นทุนเกือบทั้งหมดคือ Decart** ฝั่ง Google หลักสิบ $ ต่อเดือน
-ตัวเลข Google เป็นค่าประมาณ ให้เช็คกับหน้า pricing ปัจจุบันก่อนเสนอราคา
+### 6.1 ต่อรูป (เหมือนกันทุกวัน)
+
+| รายการ | คิดยังไง | ต่อรูป |
+|---|---|---|
+| **Decart batch** (`/api/dress`) | ~$0.04/วินาทีวิดีโอที่ได้ (720p) × คลิป 1 วิ (`CLIP_MS` ใน [clip.ts](../kiosk/src/lib/clip.ts)) = 1 job ต่อการกดถ่าย | **~$0.04** |
+| Cloud Run: request | upscale + matte ~20 วิ × 4 vCPU (ประมาณ ยังไม่ได้วัด) | ~$0.003 (~1,500 รูปแรกของเดือนอยู่ใน free tier) |
+| Hosting: bandwidth | ตู้รับกลับ ~4–5MB (คลิปใส่ชุด, ภาพ ×4, mask) + คนสแกนโหลดรูป ~0.5MB, ~$0.15/GB | ~$0.001 (~70 รูปแรกของวันฟรี) |
+| **รวม** | | **~$0.045 (~1.5 บาท)** |
+
+คนหนึ่งถ่ายได้ 1–3 ครั้ง (`MAX_SHOTS`) → **$0.045–0.135 ต่อคน**
+
+### 6.2 ค่าคงที่
+
+| รายการ | วันงาน | วันปกติ |
+|---|---|---|
+| Cloud Run: min instance (4 vCPU / 4 GiB 1 ตัว) | ~$2.4/วัน | 0 (ตั้ง `--min-instances 0`; ลืมปิด ≈ $70/เดือน) |
+| Cloud Storage (รูปเก็บ 7 วัน ~0.5MB/รูป) | สูงสุด ~12GB < $1/เดือน | ~0 |
+| Firestore (~2 writes/คน) | free tier | free tier |
+| Artifact Registry, Cloud Build (image ~1GB; ลบ image เก่าเป็นระยะ) | < $1/เดือน | < $1/เดือน |
+| Secret Manager, Firebase Auth, Logging | ~0 | ~0 |
+
+### 6.3 ตัวอย่าง
+
+| | คน/วัน | ต่อวัน | ต่อเดือน (30 วัน) |
+|---|---|---|---|
+| ไม่มีคนใช้ (ระบบเปิดไว้เฉยๆ) | 0 | ~$0 | **< $2** |
+| วันปกติ ตู้เปิดให้ใช้ | 50 | ~$2–7 | ~$70–200 |
+| วันปกติ คนเยอะ | 200 | ~$9–27 | ~$270–810 |
+| วันงาน | 1,000 | ~$47–140 | |
+| วันงาน | 3,000 | ~$140–410 | |
+
+ช่วงตัวเลข = ทุกคนถ่าย 1 ครั้ง ถึงทุกคนถ่ายครบ 3 ครั้ง; Decart ~90% ของทั้งหมด
+
+- วันปกติ min instance = 0: คนแรกหลังว่างนานรอ cold start เพิ่มหลายวินาที (Python + โหลดโมเดล)
+- `MAX_PER_DAY` (ตอนนี้ 3,000) เป็นเพดานคร่าวๆ: นับรูปที่เก็บใน 24 ชม. ล่าสุด เต็มแล้ว `/api/dress` ก็หยุดรับ (แต่ job ที่ถ่ายใหม่แล้วไม่ได้เก็บไม่ถูกนับ) วันปกติลดลงได้ทาง env เช่น `MAX_PER_DAY=300`
+- ราคา Decart batch $0.04/วิ มาจาก [ตัวอย่างในหน้า pricing ของ Decart](https://docs.platform.decart.ai/getting-started/pricing) ซึ่งยังไม่ตรงกับตารางในหน้าเดียวกัน ให้ยืนยันกับ Decart ก่อนเสนอราคา (ขอส่วนลด volume ได้)
+- ตัวเลข Cloud Run คิดจากราคา Tier 2 (~$0.0000336/vCPU-วินาที, ~$0.0000035/GiB-วินาที) ให้เช็คกับ [หน้า pricing](https://cloud.google.com/run/pricing) และเวลาจริงจาก log
+- ไม่รวม: ฮาร์ดแวร์ตู้ (Asus PN, Femto Bolt, จอ touch), เน็ตหน้างาน, domain
 
 ## 7. Checklist ก่อนวันงาน
 
-- [ ] ทดสอบเน็ตสถานที่: WebRTC ไป Decart ผ่าน, latency, ความเร็วต่อตู้
+- [ ] ทดสอบเน็ตสถานที่: ความเร็วขึ้น/ลงต่อตู้, ถ่ายจริงครบ 1 รูปไม่เกิน timeout
+- [ ] วัดเวลา `[dress]`, `[upscale]`, `[matte]` บน Cloud Run จริง แต่ละตัวต้องต่ำกว่า 60 วิ
+- [ ] กล้อง Femto Bolt ต่อ USB 3 ตรง ตู้เห็นภาพ 3840×2160 (log `[photo] camera 3840x2160`)
 - [ ] ตั้ง budget alert (GCP) + ดู usage / spending limit ฝั่ง Decart
 - [ ] `SAVE_STEPS=false`
 - [ ] ข้อความ PDPA ตรงกับระยะเก็บ 7 วัน และระบุ Decart เป็นผู้ประมวลผล

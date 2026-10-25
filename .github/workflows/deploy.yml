@@ -34,12 +34,12 @@ jobs:
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v2
 
-      # 2 vCPU / 2 GiB, more than the plan's first guess: the backend now also cuts the visitor out (IS-Net) and
-      # sharpens (Real-ESRGAN) on CPU
+      # 4 vCPU / 4 GiB (the plan's section 3.1): the backend cuts the visitor out (IS-Net) and sharpens from 720p
+      # (Real-ESRGAN, ~12 s on an M1) on CPU, within Hosting's 60 s
       - name: Backend to Cloud Run
         run: >
           gcloud run deploy "$SERVICE" --source backend --project "${{ vars.GCP_PROJECT }}" --region "$REGION"
-          --cpu 2 --memory 2Gi --concurrency 10 --max-instances 5 --timeout 60
+          --cpu 4 --memory 4Gi --concurrency 10 --max-instances 5 --timeout 60
           --set-secrets DECART_API_KEY=decart-api-key:latest
           --set-env-vars PUBLIC_URL=${{ vars.PUBLIC_URL }},SAVE_STEPS=false
           --allow-unauthenticated --quiet
