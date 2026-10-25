@@ -50,6 +50,20 @@ cd kiosk && bun install && bun dev
 
 For production, run `bun run build` in `kiosk/`. The backend then serves the app at `/`, so you only deploy one service.
 
+## Test on site with ngrok
+
+No deploy needed: one machine runs everything (backend set up as above, `ngrok config add-authtoken` done once), and
+ngrok gives it an HTTPS address for the kiosk's browser (the camera needs HTTPS) and for the QR code on phones.
+
+```sh
+scripts/ngrok.sh                                    # builds the kiosk, opens the tunnel, prints the address
+NGROK_DOMAIN=<name>.ngrok-free.app scripts/ngrok.sh # the free static domain from the ngrok dashboard: same address every run
+```
+
+Open the printed address on the kiosk. Ctrl+C stops both. With the static domain the camera permission and old QR
+codes keep working after a restart; with a random address both reset. The free plan shows ngrok's warning page once
+per browser (tap "Visit Site") and has a monthly data cap, about 5 MB per photo.
+
 The camera must be mounted upright (portrait): the try-on stream takes the camera picture as it is.
 
 ## Environment
