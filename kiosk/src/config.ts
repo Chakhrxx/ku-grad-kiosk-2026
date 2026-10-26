@@ -16,6 +16,8 @@ export const COUNTDOWN_SECONDS = 5
 
 /** Background music level (0–1) under the countdown and shutter; tune on site to the room and speakers. */
 export const BG_VOLUME = 0.5
+/** Button tap (a synthesized water drop) level (0–1); kept under the music, heard only at the kiosk. */
+export const TAP_VOLUME = 0.3
 
 /** Degree whose gowns the faculty tiles show before one is picked, as in the design. */
 export const DEFAULT_LEVEL = 'bachelor'
