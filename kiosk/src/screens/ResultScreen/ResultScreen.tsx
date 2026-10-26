@@ -2,7 +2,7 @@ import { Button, Screen } from '@/components'
 import { useI18n } from '@/hooks/useI18n'
 import { useKiosk } from '@/hooks/useKiosk'
 import { cn } from '@/lib/cn'
-import { getSolution, SOLUTIONS } from '@/lib/solution'
+import { getSolution, SOLUTION_PICKER, SOLUTIONS } from '@/lib/solution'
 import type { PhotoResult } from '@/types'
 import { KioskHeader } from '../shared/KioskHeader'
 
@@ -66,11 +66,13 @@ function Photo({ photo, label, solution, small }: { photo: PhotoResult; label?: 
           alt=""
           className={cn('aspect-2/3 rounded-card bg-primary-soft object-cover shadow-lg', small ? 'h-102' : 'h-150')}
         />
-        {/* which solution made this photo, so test shots can be told apart */}
-        <p className="absolute right-3 bottom-3 flex items-center gap-2 rounded-pill bg-primary/85 px-4 py-1.5 text-label font-semibold text-on-selected shadow-md backdrop-blur-sm">
-          <span className="text-[11px] tracking-[0.14em] text-on-primary/80 uppercase">Test</span>
-          {solution}
-        </p>
+        {/* which solution made this photo, so test shots can be told apart; only while the solutions are compared */}
+        {SOLUTION_PICKER && (
+          <p className="absolute right-3 bottom-3 flex items-center gap-2 rounded-pill bg-primary/85 px-4 py-1.5 text-label font-semibold text-on-selected shadow-md backdrop-blur-sm">
+            <span className="text-[11px] tracking-[0.14em] text-on-primary/80 uppercase">Test</span>
+            {solution}
+          </p>
+        )}
       </div>
       {label && <figcaption className="text-base font-bold text-primary">{label}</figcaption>}
       {small && <img src={photo.qr} alt={`QR code: ${label}`} className="size-28 rounded-xl bg-white p-2" />}

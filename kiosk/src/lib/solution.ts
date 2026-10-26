@@ -13,11 +13,15 @@ export const SOLUTIONS: { id: Solution; label: string; hint: string }[] = [
   { id: 'vton-live', label: 'Lucy VTON · พรีวิวบนฉาก', hint: 'เห็นตัวเองบนฉากตอนโพสท่า แล้วส่งภาพนั้นให้ VTON ใส่ชุด' },
 ]
 
+/** The home screen's picker. Hidden: every kiosk uses the menu's first, whatever it picked before. */
+export const SOLUTION_PICKER = false
+
 const KEY = 'ku-kiosk-solution'
 let current: Solution | undefined // still holds the pick when storage is blocked
 
 /** The remembered pick while it is still on the menu, otherwise the menu's first. */
 export function getSolution(): Solution {
+  if (!SOLUTION_PICKER) return SOLUTIONS[0].id
   const offered = (s: unknown): s is Solution => SOLUTIONS.some((o) => o.id === s)
   if (offered(current)) return current
   try {

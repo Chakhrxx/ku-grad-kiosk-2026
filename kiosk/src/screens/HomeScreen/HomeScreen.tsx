@@ -10,7 +10,7 @@ import { en } from '@/i18n/en'
 import { th } from '@/i18n/th'
 import { useKiosk } from '@/hooks/useKiosk'
 import { cn } from '@/lib/cn'
-import { getSolution, setSolution, SOLUTIONS } from '@/lib/solution'
+import { getSolution, setSolution, SOLUTION_PICKER, SOLUTIONS } from '@/lib/solution'
 import type { Lang } from '@/types'
 
 const LANGUAGES: { id: Lang; label: string; flag: string }[] = [
@@ -53,16 +53,18 @@ export function HomeScreen() {
       }
     >
       {/* ponytail: test-only switch while stream and gen are compared; delete with the losing solution */}
-      <Dropdown
-        caption="Solution · test"
-        options={SOLUTIONS}
-        value={solution}
-        onChange={(next) => {
-          setSolution(next)
-          pickSolution(next)
-        }}
-        className="absolute top-8 right-10 z-10"
-      />
+      {SOLUTION_PICKER && (
+        <Dropdown
+          caption="Solution · test"
+          options={SOLUTIONS}
+          value={solution}
+          onChange={(next) => {
+            setSolution(next)
+            pickSolution(next)
+          }}
+          className="absolute top-8 right-10 z-10"
+        />
+      )}
       <div className="flex flex-col items-center text-center text-primary">
         {/* a white silhouette behind the logo, so under the tide it pales like foam instead of letting the dots through */}
         <div className="relative mt-29 w-60">
