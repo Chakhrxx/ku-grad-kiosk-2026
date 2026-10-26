@@ -26,6 +26,7 @@ import {
   UNIVERSITY_HEADER,
 } from '@/lib/photoHeader'
 import { getSolution } from '@/lib/solution'
+import { playSound } from '@/lib/sound'
 import { KioskHeader } from '../shared/KioskHeader'
 
 /** The viewfinder inside the corner brackets, in design px (Figma camera frame). */
@@ -65,7 +66,7 @@ const BAND_GREY = '#808080'
 const MATTE_WIDTH = 1080
 /** vton-live: the scene picture kept for the photo is 9:16 at the photo's width, the photo its middle. */
 const SCENE_HEIGHT = Math.round((PHOTO_WIDTH * 16) / 9)
-const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SECONDS - i) // 8, 7, … 1
+const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SECONDS - i) // 5, 4, … 1
 
 /**
  * The camera opens on arrival so visitors see themselves; then the Decart try-on stream dresses them and the
@@ -251,6 +252,7 @@ export function CameraScreen() {
   }
 
   const { count, start } = useCountdown(COUNTDOWN_SECONDS, async () => {
+    playSound('shutter')
     if (liveScene) {
       // the sharp still and the second of video are both taken here, before the screen (and the scene) closes
       try {
@@ -377,7 +379,10 @@ export function CameraScreen() {
         {canShoot && (
           <ShutterButton
             label={t.camera.shutter}
-            onClick={start}
+            onClick={() => {
+              playSound('countdown')
+              start()
+            }}
             disabled={counting || holding}
             className="relative animate-sheet-in motion-reduce:animate-none"
           />

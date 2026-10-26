@@ -11,7 +11,7 @@ const variants = {
   // a language switch eases over instead of snapping: the old key rises as the new one sinks in
   lang: cn('flex h-12.75 w-36.5 items-center gap-3 pl-2 text-button', key3d, 'duration-250 ease-out'),
   degree: cn('h-12 w-32.75 text-lg font-medium', key3d),
-  place: cn('h-12 w-32.75 px-3 text-sm leading-tight font-medium', key3d),
+  place: cn('h-14 w-37.5 px-4 text-sm leading-tight font-medium', key3d),
   choice: cn('h-11.25 w-29.75 text-button', key3d),
 }
 

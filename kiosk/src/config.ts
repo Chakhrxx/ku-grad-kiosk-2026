@@ -12,7 +12,10 @@ export const DECLINED_TIMEOUT_MS = 10_000
 /** First photo + 2 retakes. Every shot is a paid AI call. */
 export const MAX_SHOTS = 3
 
-export const COUNTDOWN_SECONDS = 8
+export const COUNTDOWN_SECONDS = 5
+
+/** Background music level (0–1) under the countdown and shutter; tune on site to the room and speakers. */
+export const BG_VOLUME = 0.5
 
 /** Degree whose gowns the faculty tiles show before one is picked, as in the design. */
 export const DEFAULT_LEVEL = 'bachelor'
