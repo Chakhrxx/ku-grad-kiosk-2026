@@ -18,6 +18,7 @@ export function ResultScreen() {
   return (
     <Screen
       header={<KioskHeader title={t.result.title} />}
+      align="centered"
       footer={
         <>
           {canRetake && (
