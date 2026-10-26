@@ -5,7 +5,7 @@ from typing import Annotated
 
 import segno
 from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 
 from app.dependencies import (
     CatalogDep,
@@ -116,21 +116,21 @@ def generate(
 
 
 @router.get("/photos/{pid}.jpg")
-def get_photo(pid: str, storage: StorageDep) -> FileResponse:
-    if not (f := storage.photo_path(pid)):
+def get_photo(pid: str, storage: StorageDep) -> Response:
+    if (jpg := storage.photo(pid)) is None:
         raise HTTPException(404)
-    return FileResponse(f, media_type="image/jpeg")
+    return Response(jpg, media_type="image/jpeg")
 
 
 @router.get("/p/{pid}", response_class=HTMLResponse)
 def download_page(pid: str, storage: StorageDep) -> HTMLResponse:
     """The page the QR code opens on the visitor's phone."""
-    if not (f := storage.photo_path(pid)):
+    if not (expires := storage.expires_at(pid)):
         return HTMLResponse(PAGE.replace("{{BODY}}", EXPIRED), 404)
     body = (
         f'<img src="/photos/{pid}.jpg" alt="Graduation photo">'
         f'<a class="btn" href="/photos/{pid}.jpg" download="KU-graduation.jpg">บันทึกรูป · Save photo</a>'
         "<p>ถ้ากดแล้วไม่บันทึก ให้กดค้างที่รูป<br>If saving doesn't start, press and hold the photo.</p>"
-        f"<p>ดาวน์โหลดได้ถึง · Available until <b>{storage.expires_at(f):%d/%m/%Y}</b></p>"
+        f"<p>ดาวน์โหลดได้ถึง · Available until <b>{expires:%d/%m/%Y}</b></p>"
     )
     return HTMLResponse(PAGE.replace("{{BODY}}", body))
