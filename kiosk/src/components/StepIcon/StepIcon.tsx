@@ -127,7 +127,8 @@ export function StepIcon({ name, delayMs = 0, className }: StepIconProps) {
       aria-hidden="true"
       style={{ '--si-delay': `${delayMs}ms` } as CSSProperties}
       className={cn(
-        'step-icon size-12 fill-none stroke-current stroke-[1.8] text-primary [stroke-linecap:round] [stroke-linejoin:round]',
+        // overflow-visible: the tap's rings spread past the 48×48 box
+        'step-icon size-12 overflow-visible fill-none stroke-current stroke-[1.8] text-primary [stroke-linecap:round] [stroke-linejoin:round]',
         className,
       )}
     >

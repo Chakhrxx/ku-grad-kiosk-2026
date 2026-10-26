@@ -395,15 +395,18 @@ export function CameraScreen() {
 const secondsSince = (from: number, to = performance.now()) => `${((to - from) / 1000).toFixed(1)}s`
 
 /**
- * vton-batch: the camera's current frame, unmirrored, at the camera's full resolution: exactly what the viewfinder
- * shows (the camera's middle at full height). Drawn at once, before the screen (and the camera) closes.
+ * vton-batch: the camera's current frame, mirrored, at the camera's full resolution: exactly what the viewfinder
+ * shows (the camera's middle at full height), so the photo matches the pose the visitor saw. Drawn at once, before
+ * the screen (and the camera) closes.
  */
 function grabView(video: HTMLVideoElement) {
   const h = video.videoHeight
   const w = Math.min(video.videoWidth, Math.round(h * VIEW_ASPECT))
   const canvas = document.createElement('canvas')
   Object.assign(canvas, { width: w, height: h })
-  canvas.getContext('2d')!.drawImage(video, (video.videoWidth - w) / 2, 0, w, h, 0, 0, w, h)
+  const ctx = canvas.getContext('2d')!
+  ctx.setTransform(-1, 0, 0, 1, w, 0) // mirrored like the viewfinder
+  ctx.drawImage(video, (video.videoWidth - w) / 2, 0, w, h, 0, 0, w, h)
   return canvas
 }
 
