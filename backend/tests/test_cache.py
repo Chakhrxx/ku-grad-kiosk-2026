@@ -8,7 +8,7 @@ from app.middleware import cache_control_for
     ("path", "expected"),
     [
         ("/static/index-HPGLXHTo.js", "public, max-age=31536000, immutable"),
-        ("/assets/backgrounds/rice-field.jpg", "public, max-age=3600"),
+        ("/assets/backgrounds/rice-field.jpg", "no-cache"),
         ("/photos/abc123def.jpg", "private, max-age=604800"),
         ("/", "no-cache"),
         ("/index.html", "no-cache"),
@@ -22,7 +22,7 @@ def test_cache_policy_per_kind_of_file(path: str, expected: str | None):
 def test_assets_are_served_with_cache_control(client: TestClient):
     r = client.get("/assets/gowns/bachelor/engineering.jpg")
     assert r.status_code == 200
-    assert r.headers["cache-control"] == "public, max-age=3600"
+    assert r.headers["cache-control"] == "no-cache"
 
 
 def test_missing_files_are_not_cached(client: TestClient):

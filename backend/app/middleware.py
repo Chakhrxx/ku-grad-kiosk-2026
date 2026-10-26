@@ -6,15 +6,17 @@ from fastapi import Request, Response
 
 log = logging.getLogger("uvicorn.error")
 
-YEAR, HOUR, WEEK = 31_536_000, 3_600, 604_800
+YEAR, WEEK = 31_536_000, 604_800
 
 
 def cache_control_for(path: str) -> str | None:
     """Browser caching per kind of file, so the kiosk doesn't refetch what it already has."""
     if path.startswith("/static/"):  # kiosk build output: file names carry a content hash
         return f"public, max-age={YEAR}, immutable"
-    if path.startswith("/assets/"):  # gowns, tiles, backgrounds: may be swapped mid-event under the same name
-        return f"public, max-age={HOUR}"
+    # gowns, tiles, backgrounds: swapped under the same name, and the kiosk loads them from JS, which a hard reload
+    # doesn't refetch; kept, but checked each time (a 304 when unchanged)
+    if path.startswith("/assets/"):
+        return "no-cache"
     if path.startswith("/photos/"):  # one person's result, unique id, gone after retention
         return f"private, max-age={WEEK}"
     if path == "/" or path.endswith(".html"):  # app shell: always check, so a deploy shows up at once
