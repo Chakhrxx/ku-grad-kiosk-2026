@@ -38,6 +38,7 @@ export function ShutterButton({ label, onClick, disabled = false, className }: S
   return (
     <button
       type="button"
+      data-silent // the countdown is its sound
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
