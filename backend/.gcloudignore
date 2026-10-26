@@ -1,0 +1,10 @@
+# What `gcloud run deploy --source backend` leaves behind: above all .env, which holds the Decart key
+
+.env
+.venv
+data
+tests
+**/__pycache__
+*.egg-info
+.pytest_cache
+.ruff_cache

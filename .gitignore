@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+node_modules/
+dist/
+backend/data/
+.env
+.DS_Store
+storybook-static/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
