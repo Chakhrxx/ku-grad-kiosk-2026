@@ -86,11 +86,10 @@ Region: **asia-southeast1 (Singapore)** ทุกตัว — ใกล้ไ�
 
 ## 4. โค้ดที่ต้องแก้ก่อน deploy
 
-1. **Storage → Cloud Storage + Firestore** — ตอนนี้ [storage.py](../backend/app/services/storage.py) เขียนลง disk ซึ่ง Cloud Run ไม่เก็บไว้ (instance หายไฟล์หาย)
-   - `save_photo` → upload ไป bucket + doc ใน Firestore
-   - `photo_path`/`get_photo` → stream จาก bucket
-   - `sweep` → ลบทิ้ง (bucket lifecycle ลบให้) เหลือแค่นับ `photos` ที่ `created_at` > 24 ชม. ด้วย Firestore `count()`
-   - `consents` → Firestore
+1. ~~**Storage → Cloud Storage**~~ เสร็จแล้ว: ตั้ง `STORAGE_BUCKET` แล้ว [storage.py](../backend/app/services/storage.py) (`BucketStorage`) เก็บรูปที่ `photos/` และ consent ที่ `consents/` ใน bucket ไม่ตั้งก็ลง disk เหมือนเดิม (ใช้ตอน dev) ไม่ใช้ Firestore
+   - id รูปขึ้นต้นด้วยวันที่ (UTC) ให้นับรูป 24 ชม. ได้ด้วยการ list แค่ 2 วันล่าสุด
+   - bucket `ku-cloth-interactive.firebasestorage.app` มี lifecycle ลบเมื่ออายุ 7 วัน ทั้ง `photos/` และ `consents/` (ถ้า DPO ให้เก็บ consent นานกว่า ต้องจำกัด rule ไว้ที่ `photos/`)
+   - bucket อยู่ US-EAST1 ส่วน Cloud Run อยู่ Singapore: ทุกครั้งที่อ่าน/เขียนรูปไกลขึ้นราว 0.2 วิ
 2. ~~**Dockerfile** สำหรับ backend~~ เสร็จแล้ว: [backend/Dockerfile](../backend/Dockerfile) ใส่ `assets/`, `models/` และโหลด model ตัดคน (IS-Net 179MB) เข้า image ตอน build
 3. **กันคนนอกยิง API** — ตอนนี้ใครก็ได้ที่รู้ URL ขอ token Decart ได้ = เสียเงินเรา
    - ตู้ login Firebase Auth (account ต่อตู้ ตั้งครั้งเดียวตอนติดตั้ง) ส่ง ID token มากับทุก `/api` ที่เสียเงิน: `/api/consent`, `/api/dress` (Decart job ละครั้ง), `/api/matte`, `/api/upscale` (CPU), `/api/generate`

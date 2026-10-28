@@ -27,7 +27,7 @@ async function startAndOpenConsent() {
   await userEvent.click(await screen.findByRole('button', { name: 'ENGLISH' }))
   await userEvent.click(screen.getByRole('button', { name: "Let's start" }))
   await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
-  return screen.getByRole('dialog', { name: 'Data Collection & Usage Consent' })
+  return screen.getByRole('dialog', { name: 'Consent to the Collection, Use and Disclosure of Personal Data' })
 }
 
 const prefersReducedMotion = (reduce: boolean) => {
@@ -44,12 +44,12 @@ describe('kiosk flow', () => {
   it('declining consent records nothing and stays on How to Join, where Next opens the consent again', async () => {
     await startAndOpenConsent()
     expect(screen.getAllByRole('button', { name: 'Next' }).at(-1)).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Don’t allow' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Decline' }))
 
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(api.giveConsent).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(screen.getByRole('dialog', { name: 'Data Collection & Usage Consent' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Consent to the Collection, Use and Disclosure of Personal Data' })).toBeInTheDocument()
   })
 
   it('agreeing records consent for this session and opens degree & faculty', async () => {
@@ -57,7 +57,7 @@ describe('kiosk flow', () => {
     const next = screen.getAllByRole('button', { name: 'Next' }).at(-1)!
     expect(next).toBeDisabled()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Allow' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
     await userEvent.click(next)
 
     expect(await screen.findByRole('heading', { name: 'Which Faculty Represents Your Success' })).toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('kiosk flow', () => {
 
   it('NEXT on degree & faculty unlocks only once both are picked', async () => {
     await startAndOpenConsent()
-    await userEvent.click(screen.getByRole('button', { name: 'Allow' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Next' }).at(-1)!)
 
     const next = await screen.findByRole('button', { name: 'Next' })
@@ -92,7 +92,7 @@ describe('kiosk flow', () => {
 
   it('picking a faculty before a degree selects the bachelor degree shown on the tiles', async () => {
     await startAndOpenConsent()
-    await userEvent.click(screen.getByRole('button', { name: 'Allow' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Next' }).at(-1)!)
 
     await userEvent.click(await screen.findByRole('button', { name: 'Faculty of Engineering' }))
@@ -102,7 +102,7 @@ describe('kiosk flow', () => {
 
   it('switching degree clears the faculty picked for the previous one', async () => {
     await startAndOpenConsent()
-    await userEvent.click(screen.getByRole('button', { name: 'Allow' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Next' }).at(-1)!)
 
     await userEvent.click(await screen.findByRole('button', { name: "Bachelor's" }))

@@ -31,15 +31,18 @@ export function PdpaModal() {
         </>
       }
     >
-      <p>{t.pdpa.intro}</p>
-      <ul className="list-disc space-y-3 pl-6 leading-[1.1]">
+      <Paragraphs text={t.pdpa.intro} />
+      <ul className="list-disc space-y-1 pl-6 leading-[1.1]">
         {t.pdpa.items.map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ul>
-      <p>
-        {t.pdpa.processor} {t.pdpa.retention}
-      </p>
+      <Paragraphs text={`${t.pdpa.processor}\n${t.pdpa.retention}`} />
     </Modal>
   )
+}
+
+/** One <p> per line, so a copy deck can break paragraphs with \n. */
+function Paragraphs({ text }: { text: string }) {
+  return text.split('\n').map((line) => <p key={line} className="indent-8">{line}</p>)
 }

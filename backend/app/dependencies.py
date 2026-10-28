@@ -13,7 +13,7 @@ from app.config import Settings, get_settings
 from app.services.catalog import CatalogService, load_catalog
 from app.services.frame import add_frame
 from app.services.matte import person_matte
-from app.services.storage import Storage
+from app.services.storage import BucketStorage, Storage
 from app.services.upscale import upscale
 
 log = logging.getLogger("uvicorn.error")
@@ -21,7 +21,9 @@ log = logging.getLogger("uvicorn.error")
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
-def get_storage(settings: SettingsDep) -> Storage:
+def get_storage(settings: SettingsDep) -> Storage | BucketStorage:
+    if settings.storage_bucket:
+        return BucketStorage(settings.storage_bucket, settings.keep_days)
     return Storage(settings.data_dir, settings.keep_days)
 
 
@@ -50,7 +52,7 @@ def get_upscaler() -> Matter:
     return upscale
 
 
-StorageDep = Annotated[Storage, Depends(get_storage)]
+StorageDep = Annotated[Storage | BucketStorage, Depends(get_storage)]
 CatalogDep = Annotated[CatalogService, Depends(get_catalog)]
 RendererDep = Annotated[Renderer, Depends(get_renderer)]
 MatterDep = Annotated[Matter, Depends(get_matter)]
@@ -66,7 +68,7 @@ def get_decart_key(settings: SettingsDep) -> str:
 DecartKeyDep = Annotated[str, Depends(get_decart_key)]
 
 
-def require_consent(storage: Storage, session: str) -> None:
+def require_consent(storage: Storage | BucketStorage, session: str) -> None:
     if not storage.has_consent(session):
         raise HTTPException(403, "no_consent")
 
@@ -89,7 +91,7 @@ def get_upload(
 UploadDep = Annotated[bytes, Depends(get_upload)]
 
 
-def check_daily_limit(storage: Storage, settings: Settings) -> None:
+def check_daily_limit(storage: Storage | BucketStorage, settings: Settings) -> None:
     """Each photo is billed (try-on), so a rolling 24h cap guards the AI budget."""
     if storage.sweep() >= settings.max_per_day:
         raise HTTPException(429, "daily_limit")

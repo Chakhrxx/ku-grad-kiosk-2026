@@ -1,5 +1,5 @@
 # Production deploy (docs/deploy-firebase.md): the backend to Cloud Run, the kiosk to Firebase Hosting.
-# Run by hand from the Actions tab until that plan's section 4 is done (photos still go to the instance's disk).
+# Run by hand from the Actions tab until that plan's section 4 is done (the API has no sign-in yet).
 #
 # Needs, as repository variables (Settings → Secrets and variables → Actions → Variables):
 #   GCP_PROJECT, GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, PUBLIC_URL
@@ -41,7 +41,7 @@ jobs:
           gcloud run deploy "$SERVICE" --source backend --project "${{ vars.GCP_PROJECT }}" --region "$REGION"
           --cpu 4 --memory 4Gi --concurrency 10 --max-instances 5 --timeout 60
           --set-secrets DECART_API_KEY=decart-api-key:latest
-          --set-env-vars PUBLIC_URL=${{ vars.PUBLIC_URL }},SAVE_STEPS=false
+          --set-env-vars PUBLIC_URL=${{ vars.PUBLIC_URL }},STORAGE_BUCKET=${{ vars.GCP_PROJECT }}.firebasestorage.app,SAVE_STEPS=false
           --allow-unauthenticated --quiet
 
       - uses: oven-sh/setup-bun@v2

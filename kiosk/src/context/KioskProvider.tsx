@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { errorCodeOf, generatePhoto, getCatalog, giveConsent } from '@/api/client'
-import { DEFAULT_LEVEL, IDLE_TIMEOUT_MS, MAX_SHOTS } from '@/config'
+import { DEFAULT_LEVEL, IDLE_TIMEOUT_MS, MAX_SHOTS, RESULT_IDLE_MS } from '@/config'
 import { useI18n } from '@/hooks/useI18n'
 import { useIdleTimer } from '@/hooks/useIdleTimer'
 import { loadSegmenter } from '@/hooks/useLiveBackground'
@@ -43,7 +43,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
     setStep('error')
   }
 
-  useIdleTimer(step !== 'home' && step !== 'generating', IDLE_TIMEOUT_MS, reset)
+  useIdleTimer(step !== 'home' && step !== 'generating', step === 'result' ? RESULT_IDLE_MS : IDLE_TIMEOUT_MS, reset)
 
   const start = async () => {
     try {

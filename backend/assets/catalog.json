@@ -24,13 +24,13 @@
   "faculties": [
     {
       "id": "agriculture",
-      "th": "คณะเกษตร",
-      "en": "Faculty of Agriculture"
+      "th": "คณะเกษตร กำแพงแสน",
+      "en": "Faculty of Agriculture at Kamphaeng Saen"
     },
     {
       "id": "sports-science",
-      "th": "คณะวิทยาศาสตร์การกีฬา",
-      "en": "Faculty of Sports Science"
+      "th": "คณะวิทยาศาสตร์การกีฬาและสุขภาพ",
+      "en": "Faculty of Sports and Health Science"
     },
     {
       "id": "fisheries",
@@ -44,8 +44,8 @@
     },
     {
       "id": "engineering",
-      "th": "คณะวิศวกรรมศาสตร์",
-      "en": "Faculty of Engineering"
+      "th": "คณะวิศวกรรมศาสตร์ กำแพงแสน",
+      "en": "Faculty of Engineering at Kamphaeng Saen"
     },
     {
       "id": "environment",
@@ -60,7 +60,7 @@
     {
       "id": "service-industry",
       "th": "คณะอุตสาหกรรมบริการ",
-      "en": "Faculty of Service Industry"
+      "en": "Faculty of Hospitality Industry"
     },
     {
       "id": "education-development",
@@ -71,18 +71,18 @@
   "others": [
     {
       "id": "male-uniform",
-      "th": "ชุดนักศึกษาชาย",
+      "th": "ชุดนิสิตชาย",
       "en": "Male Uniform"
     },
     {
       "id": "female-uniform",
-      "th": "ชุดนักศึกษาหญิง",
+      "th": "ชุดนิสิตหญิง",
       "en": "Female Uniform"
     },
     {
       "id": "mohom",
       "th": "ชุดม่อฮ่อม",
-      "en": "Mo Hom Suit"
+      "en": "Mo Hom Outfit (Traditional Thai Indigo)"
     }
   ],
   "backgrounds": [
@@ -93,13 +93,13 @@
     },
     {
       "id": "chomphu-road",
-      "th": "ถนนดอกชมพูพันธุ์ทิพย์",
-      "en": "Chomphu Phanthip Road"
+      "th": "ถนนชมพูพันธุ์ทิพย์",
+      "en": "Pink Trumpet Tree Road"
     },
     {
       "id": "rice-field",
       "th": "ทุ่งข้าวสรรพสี",
-      "en": "Colorful Rice Field"
+      "en": "Rainbow rice"
     },
     {
       "id": "ku",

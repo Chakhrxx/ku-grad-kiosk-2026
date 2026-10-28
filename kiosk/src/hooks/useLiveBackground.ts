@@ -208,7 +208,7 @@ async function composeScene(
     const t = tight.getContext('2d')!
     t.drawImage(matte, 0, 0)
     t.globalCompositeOperation = 'destination-in'
-    t.drawImage(grow(near, Math.max(2, near.width / 20)), 0, 0, tight.width, tight.height)
+    t.drawImage(grow(near, Math.max(2, near.width / 8)), 0, 0, tight.width, tight.height)
     body = boxOfAlpha(tight, image.width)
   } else {
     ;({ tight, body } = segmentStill(seg, content))

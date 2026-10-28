@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     assets_dir: Path = BACKEND_DIR / "assets"
     data_dir: Path = BACKEND_DIR / "data"
+    storage_bucket: str = ""
+    """Cloud Storage bucket for photos and consents (Cloud Run); empty keeps them on local disk, in data_dir."""
     kiosk_dist: Path = BACKEND_DIR.parent / "kiosk" / "dist"
 
     decart_api_key: SecretStr = SecretStr("")
