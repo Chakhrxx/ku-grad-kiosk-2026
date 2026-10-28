@@ -30,7 +30,7 @@ const BLADES = HEX.map(([x1, y1], k) => {
 const WAVE = 'M0 60Q12.5 53 25 60T50 60T75 60T100 60T125 60T150 60T175 60T200 60V100H0Z'
 
 /**
- * The round camera shutter: a white ring around teal aperture blades turning slowly like a whirlpool, over water
+ * The round camera shutter: a white ring around teal aperture blades (still), over water
  * whose waves roll across the lower half; sinks when pressed.
  */
 export function ShutterButton({ label, onClick, disabled = false, className }: ShutterButtonProps) {
@@ -56,7 +56,7 @@ export function ShutterButton({ label, onClick, disabled = false, className }: S
         <g clipPath={`url(#${clip})`}>
           <path d={WAVE} fill="#3f9692" className="animate-shutter-wave motion-reduce:animate-none" />
         </g>
-        <g style={{ transformOrigin: '50px 50px' }} className="animate-shutter-turn motion-reduce:animate-none">
+        <g>
           {BLADES.map((l, i) => (
             <line key={i} {...l} stroke="white" strokeWidth="3" />
           ))}

@@ -13,7 +13,6 @@ export function ResultScreen() {
   // ponytail: test-only, while the solutions are compared; delete with the dropdown on the home screen
   const solution = getSolution()
   const solutionLabel = SOLUTIONS.find((o) => o.id === solution)?.label ?? solution
-  const batch = solution === 'vton-batch'
 
   return (
     <Screen
@@ -36,8 +35,8 @@ export function ResultScreen() {
         // two, each with its own QR, so the visitor keeps whichever they like. vton-batch: on the scene and without
         // it (no cut-out, so every detail of the gown); vton-live: in the middle of the scene and where they stood
         <div className="flex gap-6">
-          <Photo photo={result} label={batch ? t.result.withScene : t.result.centred} solution={solutionLabel} small />
-          <Photo photo={alternate} label={batch ? t.result.noScene : t.result.asShot} solution={solutionLabel} small />
+          <Photo photo={result} solution={solutionLabel} small />
+          <Photo photo={alternate} solution={solutionLabel} small />
         </div>
       ) : (
         <Photo photo={result} solution={solutionLabel} />
@@ -48,7 +47,7 @@ export function ResultScreen() {
         <p className="max-w-110 text-center text-xs leading-snug font-bold text-primary">{t.result.scan}</p>
       ) : (
         <div className="flex items-center gap-5">
-          <img src={result.qr} alt="QR code" className="size-35 rounded-xl bg-white p-2" />
+          <img src={result.qr} alt={t.result.qr} className="size-35 rounded-xl bg-white p-2" />
           <p className="max-w-55 text-xs leading-snug font-bold text-primary">{t.result.scan}</p>
         </div>
       )}
@@ -56,8 +55,9 @@ export function ResultScreen() {
   )
 }
 
-/** One finished photo, tagged with the solution that made it; two-up (`small`) it has its label and QR under it. */
-function Photo({ photo, label, solution, small }: { photo: PhotoResult; label?: string; solution: string; small?: boolean }) {
+/** One finished photo, tagged with the solution that made it; two-up (`small`) it has its QR under it. */
+function Photo({ photo, solution, small }: { photo: PhotoResult; solution: string; small?: boolean }) {
+  const { t } = useI18n()
   return (
     <figure className="flex flex-col items-center gap-3">
       <div className="relative">
@@ -74,8 +74,7 @@ function Photo({ photo, label, solution, small }: { photo: PhotoResult; label?: 
           </p>
         )}
       </div>
-      {label && <figcaption className="text-base font-bold text-primary">{label}</figcaption>}
-      {small && <img src={photo.qr} alt={`QR code: ${label}`} className="size-28 rounded-xl bg-white p-2" />}
+      {small && <img src={photo.qr} alt={t.result.qr} className="size-28 rounded-xl bg-white p-2" />}
     </figure>
   )
 }

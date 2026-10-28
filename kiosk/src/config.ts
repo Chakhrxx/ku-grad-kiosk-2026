@@ -4,6 +4,8 @@ export const DESIGN_HEIGHT = 1280
 
 /** Back to home after this long untouched. */
 export const IDLE_TIMEOUT_MS = 60_000
+/** The result stays longer: the visitor scans a QR code with their phone before it goes home. */
+export const RESULT_IDLE_MS = 180_000
 /** Home touched, then left alone this long: Start goes again, leaving the screen to its motion. */
 export const HOME_ENGAGED_IDLE_MS = 20_000
 /** After "Don't allow" on the consent, How to Join waits this long untouched (for Next again) before going home. */

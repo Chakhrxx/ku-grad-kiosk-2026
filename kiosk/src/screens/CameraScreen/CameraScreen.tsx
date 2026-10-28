@@ -233,7 +233,10 @@ export function CameraScreen() {
     const { steps } = dressing
     dressed.toBlob((b) => b && showPreview(b), 'image/jpeg', 0.9) // in the room: shown while the scene goes on
     // cut out of the room by the server's matting model, which keeps the gown's details
+    // the same place and size as in the room photo, so the two differ only in what is behind them
     const matte = await matteFor(dressed)
+    const onPhoto = placedLikeRoom(dressed, rect, view)
+    const photoMatte = matte && (await createImageBitmap(placedLikeRoom(matte, rect, view)))
     const t3 = performance.now()
     const finish = (ctx: CanvasRenderingContext2D) => drawPhotoHeader(ctx, header, title, photoDate(), { fade: false })
     // two photos, the visitor picks one: on the scene, and in the room as the camera saw them, with no cut-out to
@@ -241,7 +244,11 @@ export function CameraScreen() {
     const room = inTheRoom(dressed, rect, view)
     await finish(room.getContext('2d')!)
     const photo = await Promise.all([
-      compositePhoto(dressed, backgroundUrl(background), finish, scene?.subject_shift, { behind: drawHeaderFade, matte }),
+      compositePhoto(onPhoto, backgroundUrl(background), finish, scene?.subject_shift, {
+        behind: drawHeaderFade,
+        matte: photoMatte,
+        centre: false, // as the camera saw them, not moved to the middle of the scene
+      }),
       jpegOf(room),
     ])
     if (steps) saveSteps(steps, photo) // debug: result1 on the scene, result2 in the room
@@ -443,21 +450,40 @@ const ROOM_TOP = 0.13
 /** How much of the dressed crop's edges fades into the room around it, so no seam shows. */
 const ROOM_FEATHER = 0.06
 
-/**
- * No scene: the visitor dressed, in the room where they stood, at the photo's 2:3. The dressed crop fills the height
- * below the header; the camera's own picture of the room fills in beside and above it, the crop's edges faded in.
- */
-function inTheRoom(dressed: HTMLCanvasElement, rect: { x: number; y: number; w: number; h: number }, view: HTMLCanvasElement) {
+type Rect = { x: number; y: number; w: number; h: number }
+
+/** Where the visitor's crop (`rect`, in view px) lands on the 2:3 photo: `k` photo px per view px, the photo's `left` edge in view px, the crop's `top`. */
+function roomPlacement(rect: Rect, view: HTMLCanvasElement) {
+  const top = ROOM_TOP * PHOTO_HEIGHT
+  // the crop the full height below the header, or larger when the visitor stood so close that the room at that size
+  // would be narrower than the photo (white down both sides); then their feet go off the bottom
+  const k = Math.max((PHOTO_HEIGHT - top) / rect.h, PHOTO_WIDTH / view.width)
+  // centred on the visitor, but kept on the room so neither side runs past it
+  const left = Math.min(Math.max(0, rect.x + rect.w / 2 - PHOTO_WIDTH / k / 2), view.width - PHOTO_WIDTH / k)
+  return { k, left, top }
+}
+
+/** `image` (the visitor's crop, or its cut-out) on a clear 2:3 photo, exactly where inTheRoom puts them. */
+function placedLikeRoom(image: ImageBitmap | HTMLCanvasElement, rect: Rect, view: HTMLCanvasElement) {
+  const { k, left, top } = roomPlacement(rect, view)
   const canvas = document.createElement('canvas')
   Object.assign(canvas, { width: PHOTO_WIDTH, height: PHOTO_HEIGHT })
   const ctx = canvas.getContext('2d')!
   ctx.imageSmoothingQuality = 'high'
-  const top = ROOM_TOP * PHOTO_HEIGHT
-  // view px to photo px: the crop the full height below the header, or larger when the visitor stood so close that
-  // the room at that size would be narrower than the photo (white down both sides); then their feet go off the bottom
-  const k = Math.max((PHOTO_HEIGHT - top) / rect.h, PHOTO_WIDTH / view.width)
-  // the photo's left edge, in view px: centred on the visitor, but kept on the room so neither side runs past it
-  const left = Math.min(Math.max(0, rect.x + rect.w / 2 - PHOTO_WIDTH / k / 2), view.width - PHOTO_WIDTH / k)
+  ctx.drawImage(image, (rect.x - left) * k, top, rect.w * k, rect.h * k)
+  return canvas
+}
+
+/**
+ * No scene: the visitor dressed, in the room where they stood, at the photo's 2:3. The dressed crop fills the height
+ * below the header; the camera's own picture of the room fills in beside and above it, the crop's edges faded in.
+ */
+function inTheRoom(dressed: HTMLCanvasElement, rect: Rect, view: HTMLCanvasElement) {
+  const canvas = document.createElement('canvas')
+  Object.assign(canvas, { width: PHOTO_WIDTH, height: PHOTO_HEIGHT })
+  const ctx = canvas.getContext('2d')!
+  ctx.imageSmoothingQuality = 'high'
+  const { k, left, top } = roomPlacement(rect, view)
   ctx.fillStyle = '#fff' // above the camera's top edge, under the header
   ctx.fillRect(0, 0, PHOTO_WIDTH, PHOTO_HEIGHT)
   ctx.drawImage(view, -left * k, top - rect.y * k, view.width * k, view.height * k)
@@ -582,7 +608,7 @@ function CountdownDrum({ count }: { count: number }) {
             style={{
               transform: `translate(-50%, -50%) translateY(${Math.sign(k) * DRUM_OFFSET[a]}px) scale(${DRUM_SCALE[a]})`,
               color: a === 0 ? '#ffffff' : '#cde9e7',
-              opacity: a <= 1 ? 1 : a === 2 ? 0.2 : 0, // only two neighbours each side, as in the design
+              opacity: count === 0 ? 0 : a <= 1 ? 1 : a === 2 ? 0.2 : 0, // only two neighbours each side, as in the design; all gone at 0, before the shutter
               textShadow: a === 0 ? '0 2px 6px rgb(0 60 57 / 0.35)' : undefined,
             }}
           >

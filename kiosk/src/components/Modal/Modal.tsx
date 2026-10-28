@@ -28,7 +28,7 @@ export function Modal({ title, onClose, closeLabel = 'Close', footer, children }
         <h2 id={titleId} className="text-center text-xl font-black text-primary">
           {title}
         </h2>
-        <div className="mt-12.5 flex flex-col gap-6 pr-8 text-lg leading-6 text-ink">{children}</div>
+        <div className="mt-12.5 flex flex-col gap-3 pr-2 text-lg leading-6 text-ink">{children}</div>
         {footer && <div className="mt-auto flex flex-col items-center gap-9 pt-8">{footer}</div>}
       </div>
     </div>

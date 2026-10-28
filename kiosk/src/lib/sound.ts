@@ -9,6 +9,11 @@ const bg = Object.assign(new Audio(bgUrl), { loop: true, volume: BG_VOLUME })
 /** Play a cue from its start. If the browser refuses (no touch yet), the kiosk carries on silently. */
 export function playSound(name: keyof typeof cues) {
   const cue = cues[name]
+  // the countdown cue runs a little past the five seconds on screen: the shutter waits for it to finish
+  if (name === 'shutter' && !cues.countdown.paused && !cues.countdown.ended) {
+    cues.countdown.addEventListener('ended', () => playSound('shutter'), { once: true })
+    return
+  }
   cue.currentTime = 0
   cue.play().catch(() => {})
 }

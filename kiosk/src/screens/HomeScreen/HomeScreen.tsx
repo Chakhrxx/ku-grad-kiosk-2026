@@ -74,7 +74,8 @@ export function HomeScreen() {
         <p style={driftAfter(1)} className={cn(drift, 'mt-10 text-[22px] leading-[33px] font-semibold')}>
           {t.home.university}
           <br />
-          {t.home.campus}
+          {/* nowrap: the browser's Thai dictionary would otherwise be free to split วิทยาเขต|กำแพงแสน */}
+          <span className="whitespace-nowrap">{t.home.campus}</span>
         </p>
         <p style={driftAfter(2)} className={cn(drift, 'mt-51 max-w-123 text-lg leading-8 whitespace-pre-line')}>
           {t.home.tagline}

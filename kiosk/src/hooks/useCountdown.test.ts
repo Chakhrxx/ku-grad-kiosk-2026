@@ -18,6 +18,8 @@ describe('useCountdown', () => {
       act(() => vi.advanceTimersByTime(1000))
       expect(result.current.count).toBe(expected)
     }
+    expect(onDone).not.toHaveBeenCalled() // the last number is still fading out
+    act(() => vi.advanceTimersByTime(600))
     expect(onDone).toHaveBeenCalledOnce()
   })
 })

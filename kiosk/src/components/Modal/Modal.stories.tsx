@@ -9,7 +9,7 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   decorators: [(Story) => <div className="relative h-320 w-180"><Story /></div>],
   args: {
-    title: 'Data Collection & Usage Consent',
+    title: 'Consent to the Collection, Use and Disclosure of Personal Data',
     onClose: fn(),
     children: <p>Your photo is kept for 7 days, then deleted automatically.</p>,
   },

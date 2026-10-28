@@ -15,15 +15,14 @@ function renderWith(preview?: string) {
 }
 
 describe('GeneratingScreen', () => {
-  it('shows only the spinner until the dressed preview is ready', () => {
+  it('shows the waiting line, and no picture, until the dressed preview is ready', () => {
     renderWith()
     expect(screen.getByText('กำลังสร้างรูป…')).toBeInTheDocument()
     expect(document.querySelector('img')).toBeNull()
   })
 
-  it('shows the visitor already dressed while the scene goes on', () => {
+  it('changes its line once the visitor is dressed and the scene goes on', () => {
     renderWith('blob:dressed')
-    expect(document.querySelector('img')).toHaveAttribute('src', 'blob:dressed')
-    expect(screen.getByText('กำลังใส่ฉากหลัง…')).toBeInTheDocument()
+    expect(screen.getByText('กำลังเตรียมภาพของคุณ…')).toBeInTheDocument()
   })
 })
