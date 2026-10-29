@@ -207,6 +207,7 @@ export function CameraScreen() {
     const centred = compositePhoto(photo, backgroundUrl(background), finish, scene?.subject_shift, {
       behind: drawHeaderFade,
       matte: await matteFor(photo),
+      centre: false, // as the camera saw them, not moved to the middle of the scene
     })
     const asShot = asCanvas(photo, true) // a copy: the centred one still cuts the visitor out of `photo`
     await finish(asShot.getContext('2d')!) // its fade is in the scene already, behind them
