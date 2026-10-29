@@ -15,25 +15,25 @@ export const en = {
       { title: "Start", body: "Tap the screen to begin." },
       {
         title: "Instructions",
-        body: "Read the instructions, then tap Accept.",
+        body: "Read the instructions, then tap “Accept”.",
       },
       {
         title: "Privacy Consent (PDPA)",
-        body: "Tap Agree to accept the privacy terms.",
+        body: "Tap “Agree” to accept the privacy terms.",
       },
       {
         title: "Degree & Faculty",
         body: [
           "Choose your degree: Bachelor’s, Master’s, or Doctorate",
           "Choose 1 of 9 faculties",
-          "Tap Next",
+          "Tap “Next”",
         ],
         bulleted: true,
       },
-      { title: "Choose Background", body: "Pick a background, then tap Next." },
+      { title: "Choose Background", body: "Pick a background, then tap “Next”." },
       {
         title: "Take Your Photo",
-        body: "Tap the shutter button. A 5-second countdown will start, and your photo will be taken automatically.",
+        body: "Tap the “Shutter” button. A 5-second countdown will start, and your photo will be taken automatically.",
       },
       {
         title: "Your Result",
