@@ -9,6 +9,7 @@ import { useKiosk } from '@/hooks/useKiosk'
 import {
   compositePhoto,
   keepSharpScene,
+  nextFrame,
   loadSegmenter,
   personBox,
   restoreFace,
@@ -50,6 +51,8 @@ function fadeInPhoto(ctx: CanvasRenderingContext2D) {
   drawHeaderFade(ctx)
   ctx.restore()
 }
+/** The header's white eases out over this much on the in-the-room photo: no scene fade there, so longer than on the scene. */
+const ROOM_HEADER_FEATHER = 120
 /** If the visitor is still not on the scene when the countdown ends, give up after this long. */
 const SCENE_WAIT_MS = 15_000
 /** vton-batch: as sharp as the camera goes (the Femto Bolt does 4K): the visitor's face in the photo is the camera's. */
@@ -183,11 +186,13 @@ export function CameraScreen() {
     const dressing = await dressPhoto(clip, { session, level, item, solution })
     const dressedFrame = await sharpened(await frameOf(dressing.photo))
     const t2 = performance.now()
+    await nextFrame()
     // the model's 720p video softens everything: the scene goes back sharp, then the face from the camera
     const sharp = await keepSharpScene(onScene, dressedFrame, await matteFor(asCanvas(dressedFrame))).catch((e) => {
       console.error('sharp scene failed', e)
       return dressedFrame
     })
+    await nextFrame()
     const restored = await restoreFace(onScene, sharp instanceof HTMLCanvasElement ? await createImageBitmap(sharp) : sharp).catch(
       (e) => {
         console.error('face restore failed', e)
@@ -195,6 +200,7 @@ export function CameraScreen() {
       },
     )
     const { steps } = dressing
+    await nextFrame()
     const photo = photoSlice(restored)
     const t3 = performance.now()
     const finish = (ctx: CanvasRenderingContext2D) => drawPhotoHeader(ctx, header, title, photoDate(), { fade: false })
@@ -214,6 +220,11 @@ export function CameraScreen() {
 
   const makePhoto = async (video: HTMLVideoElement) => {
     const t0 = performance.now()
+    // ponytail: debug only, delete once the loading freeze is found: every stretch the main thread (and so the orb) was stuck
+    const stuck = new PerformanceObserver((l) =>
+      l.getEntries().forEach((e) => console.info(`[photo] orb frozen ${Math.round(e.duration)}ms at +${secondsSince(t0, e.startTime)}`)),
+    )
+    stuck.observe({ type: 'longtask', buffered: false })
     console.info(`[photo] camera ${video.videoWidth}x${video.videoHeight}`)
     const view = grabView(video)
     // the room doesn't matter (the visitor goes onto the scene), so the model gets them filling its whole 9:16
@@ -223,12 +234,14 @@ export function CameraScreen() {
     const dressing = await dressPhoto(await clipOf(modelSized(shot)), { session, level, item, solution })
     const dressedShot = await sharpened(await frameOf(dressing.photo))
     const t1 = performance.now()
+    await nextFrame()
     // the model redraws the face as someone else; a failed restore still leaves a photo in the gown
     const restored = await restoreFace(shot, dressedShot).catch((e) => {
       console.error('face restore failed', e)
       return dressedShot
     })
     const t2 = performance.now()
+    await nextFrame()
     const dressed = asCanvas(restored)
     const { steps } = dressing
     dressed.toBlob((b) => b && showPreview(b), 'image/jpeg', 0.9) // in the room: shown while the scene goes on
@@ -241,8 +254,9 @@ export function CameraScreen() {
     const finish = (ctx: CanvasRenderingContext2D) => drawPhotoHeader(ctx, header, title, photoDate(), { fade: false })
     // two photos, the visitor picks one: on the scene, and in the room as the camera saw them, with no cut-out to
     // lose the gown's details
+    await nextFrame()
     const room = inTheRoom(dressed, rect, view)
-    await finish(room.getContext('2d')!)
+    await drawPhotoHeader(room.getContext('2d')!, header, title, photoDate(), { fade: false, feather: ROOM_HEADER_FEATHER })
     const photo = await Promise.all([
       compositePhoto(onPhoto, backgroundUrl(background), finish, scene?.subject_shift, {
         behind: drawHeaderFade,
@@ -251,6 +265,7 @@ export function CameraScreen() {
       }),
       jpegOf(room),
     ])
+    stuck.disconnect()
     if (steps) saveSteps(steps, photo) // debug: result1 on the scene, result2 in the room
     console.info(
       `[photo] dressed in ${secondsSince(t0, t1)}, face in ${secondsSince(t1, t2)}, cut out in ${secondsSince(t2, t3)}, put on the scene in ${secondsSince(t3)}`,
