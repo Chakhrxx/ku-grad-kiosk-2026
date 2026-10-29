@@ -87,11 +87,11 @@ const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SE
  * it comes back with the scene, so the scene goes back sharp, then the real face and the header.
  */
 export function CameraScreen() {
-  const { t } = useI18n()
+  const { t, name } = useI18n()
   const { catalog, session, level, item, background, shoot, showPreview, fail } = useKiosk()
   const scene = catalog?.backgrounds.find((b) => b.id === background)
-  // the place name on the photo is always Thai, as in the design; the KU scene has its own title and header
-  const title = scene?.photo_title ?? scene?.th ?? ''
+  // the place name on the photo is in the visitor's language; the KU scene has its own title and header
+  const title = scene?.photo_title ?? (scene ? name(scene) : '')
   const header = scene?.photo_title ? UNIVERSITY_HEADER : PLACE_HEADER
   const [live, setLive] = useState(false) // the camera picture is showing
   const [dressed, setDressed] = useState(false) // the picture in the gown is arriving
@@ -473,7 +473,8 @@ function roomPlacement(rect: Rect, view: HTMLCanvasElement) {
   const top = ROOM_TOP * PHOTO_HEIGHT
   // the crop the full height below the header, or larger when the visitor stood so close that the room at that size
   // would be narrower than the photo (white down both sides); then their feet go off the bottom
-  const k = Math.max((PHOTO_HEIGHT - top) / rect.h, PHOTO_WIDTH / view.width)
+  // and never so small that the camera's bottom edge stops short of the photo's (a white strip under the feet)
+  const k = Math.max((PHOTO_HEIGHT - top) / Math.min(rect.h, view.height - rect.y), PHOTO_WIDTH / view.width)
   // centred on the visitor, but kept on the room so neither side runs past it
   const left = Math.min(Math.max(0, rect.x + rect.w / 2 - PHOTO_WIDTH / k / 2), view.width - PHOTO_WIDTH / k)
   return { k, left, top }
