@@ -27,9 +27,20 @@ export const UNIVERSITY_HEADER: HeaderLayout = {
 const COLOR = '#006c67'
 /** Solid white down to here, then fading into the scene by FADE_END. */
 const WHITE_END = 170
-const FADE_END = 640
+const FADE_END = 560
 /** Without the full fade, the white still eases out over this much, so it never cuts across the scene in a line. */
 const FEATHER = 36
+
+/** White to clear over y0..y1 on a smoothstep, not a straight ramp: a linear one has a visible kink where it starts and ends (Mach band). */
+function whiteFade(ctx: CanvasRenderingContext2D, y0: number, y1: number) {
+  const g = ctx.createLinearGradient(0, y0, 0, y1)
+  for (let i = 0; i <= 16; i++) {
+    const t = i / 16
+    g.addColorStop(t, `rgba(255, 255, 255, ${1 - t * t * (3 - 2 * t)})`)
+  }
+  ctx.fillStyle = g
+  ctx.fillRect(0, y0, 1080, y1 - y0)
+}
 
 let logo: Promise<HTMLImageElement> | undefined
 function loadLogo() {
@@ -56,24 +67,21 @@ export function drawHeaderFade(ctx: CanvasRenderingContext2D) {
   ctx.scale(ctx.canvas.width / 1080, ctx.canvas.width / 1080)
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, 1080, WHITE_END)
-  const fade = ctx.createLinearGradient(0, WHITE_END, 0, FADE_END)
-  fade.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  fade.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  ctx.fillStyle = fade
-  ctx.fillRect(0, WHITE_END, 1080, FADE_END - WHITE_END)
+  whiteFade(ctx, WHITE_END, FADE_END)
   ctx.restore()
 }
 
 /**
  * The photo's header: white fading into the scene, KU logo, title (the place), campus and date.
- * `fade: false` leaves the fade out, for a photo that drew it under the visitor already (drawHeaderFade).
+ * `fade: false` leaves the fade out, for a photo that drew it under the visitor already (drawHeaderFade);
+ * `feather` is then how far the white eases out, longer for a photo with no scene to fade into.
  */
 export async function drawPhotoHeader(
   ctx: CanvasRenderingContext2D,
   layout: HeaderLayout,
   title: string,
   date: string,
-  { fade = true } = {},
+  { fade = true, feather = FEATHER } = {},
 ) {
   const { logo: at, title: t, campus: c, date: d } = layout
   const [img] = await Promise.all([
@@ -87,11 +95,7 @@ export async function drawPhotoHeader(
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, 1080, WHITE_END)
   if (!fade) {
-    const feather = ctx.createLinearGradient(0, WHITE_END, 0, WHITE_END + FEATHER)
-    feather.addColorStop(0, 'rgba(255, 255, 255, 1)')
-    feather.addColorStop(1, 'rgba(255, 255, 255, 0)')
-    ctx.fillStyle = feather
-    ctx.fillRect(0, WHITE_END, 1080, FEATHER)
+    whiteFade(ctx, WHITE_END, WHITE_END + feather)
   }
   ctx.restore()
   if (fade) drawHeaderFade(ctx)

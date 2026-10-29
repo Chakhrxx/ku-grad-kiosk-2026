@@ -236,6 +236,9 @@ async function composeScene(
   return canvas
 }
 
+/** Lets the loading orb draw a frame: it runs on the main thread, so every heavy step freezes it until it ends. */
+export const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r)))
+
 /** The photo from one dressed still: on the scene (composeScene), `finish` on top (the header), as JPEG. */
 export async function compositePhoto(
   image: ImageBitmap | HTMLCanvasElement,
@@ -491,6 +494,7 @@ export async function restoreFace(
 
   const realCrop = squareAround(realAround, FACE_CROP_FACTOR)
   const dressedCrop = squareAround(dressedAround, FACE_CROP_FACTOR)
+  await nextFrame()
   const realClose = segment(seg, real, realCrop, [FACE_CROP, FACE_CROP], [FACE_CLASS, HAIR_CLASS])
   const dressedClose = segment(seg, big, dressedCrop, [FACE_CROP, FACE_CROP], [FACE_CLASS])
   const realFace = faceIn(realClose.scores[0], realCrop)
@@ -501,6 +505,7 @@ export async function restoreFace(
     return dressed
   }
 
+  await nextFrame()
   const out = canvasOf(W, H)
   const ctx = out.getContext('2d')!
   ctx.drawImage(big, 0, 0)
@@ -509,6 +514,7 @@ export async function restoreFace(
   const realColor = meanColor(pixelsOn(realClose.input, realClose.scores[0]), realClose.scores[0].score)
   const dressedColor = meanColor(pixelsOn(dressedClose.input, dressedClose.scores[0]), dressedClose.scores[0].score)
   if (realColor && dressedColor) {
+    await nextFrame()
     const [gr, gg, gb] = tintGain(dressedColor, realColor)
     const tinted = canvasOf(W, H)
     const t = tinted.getContext('2d')!
