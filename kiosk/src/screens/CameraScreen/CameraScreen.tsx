@@ -506,6 +506,10 @@ function inTheRoom(dressed: HTMLCanvasElement, rect: Rect, view: HTMLCanvasEleme
   const soft = asCanvas(dressed, true)
   const s = soft.getContext('2d')!
   s.globalCompositeOperation = 'destination-in'
+  // where the crop ran past the camera's view it is grey band (BAND_GREY), not room: keep only what the camera saw
+  const q = soft.width / rect.w
+  const seen = { x: Math.max(0, -rect.x), y: Math.max(0, -rect.y) }
+  s.fillRect(seen.x * q, seen.y * q, (Math.min(rect.w, view.width - rect.x) - seen.x) * q, (Math.min(rect.h, view.height - rect.y) - seen.y) * q)
   const sides = s.createLinearGradient(0, 0, soft.width, 0)
   sides.addColorStop(0, 'rgba(0, 0, 0, 0)')
   sides.addColorStop(ROOM_FEATHER, '#000')
