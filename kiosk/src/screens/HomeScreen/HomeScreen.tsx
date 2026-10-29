@@ -19,7 +19,7 @@ import {
 import type { Lang } from "@/types";
 
 const LANGUAGES: { id: Lang; label: string; flag: string }[] = [
-  { id: "th", label: "THAI", flag: flagTh },
+  { id: "th", label: "ภาษาไทย", flag: flagTh },
   { id: "en", label: "ENGLISH", flag: flagGb },
 ];
 

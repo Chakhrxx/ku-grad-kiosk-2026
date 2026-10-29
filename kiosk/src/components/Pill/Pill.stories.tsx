@@ -33,7 +33,7 @@ export const Language: Story = {
 };
 
 export const LanguageSelected: Story = {
-  args: { variant: "lang", children: <>{flag(flagTh)}THAI</>, selected: true },
+  args: { variant: "lang", children: <>{flag(flagTh)}ภาษาไทย</>, selected: true },
 };
 
 export const Choice: Story = {
