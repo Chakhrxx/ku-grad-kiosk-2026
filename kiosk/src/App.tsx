@@ -1,4 +1,4 @@
-import { Stage, TouchRipple } from '@/components'
+import { HandCursor, Stage, TouchRipple } from '@/components'
 import { I18nProvider } from '@/context/I18nProvider'
 import { KioskProvider } from '@/context/KioskProvider'
 import { useKiosk } from '@/hooks/useKiosk'
@@ -51,6 +51,7 @@ export default function App() {
           <CurrentScreen />
         </Stage>
         <TouchRipple />
+        <HandCursor />
       </KioskProvider>
     </I18nProvider>
   )
