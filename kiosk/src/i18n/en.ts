@@ -3,7 +3,7 @@ import type { HowToStep } from "@/types";
 export const en = {
   home: {
     university: "KASETSART UNIVERSITY",
-    campus: "KAMPHAENGSAEN CAMPUS",
+    campus: "KAMPHAENG SAEN CAMPUS",
     tagline:
       "Step into a moment of pride with the graduation gown that stands beside you on your day of success.",
     start: "Let's start",
