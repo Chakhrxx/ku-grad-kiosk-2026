@@ -16,24 +16,34 @@ GOWN_PROMPT = (
     "Substitute the outfit with the black academic graduation gown and cap from the reference image, with its exact "
     "collar, sash and tassel colours." + KEEP
 )
-# the whole outfit, top and bottom at their length: told only "the outfit", it kept a visitor's own shorts
-OUTFIT_PROMPT = (
-    "Substitute the whole outfit, top and bottom, with exactly the outfit in the reference image, at its full length."
-    + KEEP
-)
+# the whole outfit, top and bottom at their length: told only "the outfit", it kept a visitor's own shorts. Each
+# names its own bottom, as in its reference image (assets/gowns/others), and says it covers the visitor's own
+OUTFIT_PROMPTS = {
+    "male-uniform": "a white long-sleeved shirt with green tie and belt, and long dark navy trousers",
+    "female-uniform": "a white short-sleeved shirt with belt, and a knee-length black pleated skirt",
+    "mohom": "a short-sleeved indigo mo hom shirt, and loose indigo three-quarter-length trousers",
+}
+
+
+def outfit_prompt(item: str) -> str:
+    return (
+        f"Substitute the whole outfit, top and bottom, with exactly the outfit in the reference image: "
+        f"{OUTFIT_PROMPTS.get(item, 'the outfit')}. The new bottom fully covers the visitor's own shorts or "
+        "trousers, at the full length shown in the reference image." + KEEP
+    )
 
 
 class DressError(Exception):
     """Decart took the request but gave no result (a failed or stalled try-on job)."""
 
 
-def dress(api_key: str, clip: bytes, outfit: bytes, level: str) -> bytes:
+def dress(api_key: str, clip: bytes, outfit: bytes, level: str, item: str) -> bytes:
     """The clip (MP4) with the visitor in `outfit`, as MP4: submit the job, poll it, download the result."""
     headers = {"X-API-KEY": api_key}
     r = httpx.post(
         f"{JOBS}/{MODEL}",
         headers=headers,
-        data={"prompt": OUTFIT_PROMPT if level == "others" else GOWN_PROMPT, "enhance_prompt": "false"},
+        data={"prompt": outfit_prompt(item) if level == "others" else GOWN_PROMPT, "enhance_prompt": "false"},
         files={"data": ("shot.mp4", clip, "video/mp4"), "reference_image": ("outfit.jpg", outfit, "image/jpeg")},
         timeout=60,
     )

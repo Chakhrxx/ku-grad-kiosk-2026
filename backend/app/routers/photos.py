@@ -51,7 +51,7 @@ def dress_photo(
     outfit = gown_file(catalog, level, item)
     check_daily_limit(storage, settings)
     with timed_step("dress"):
-        dressed = dress(api_key, clip, outfit.read_bytes(), level)
+        dressed = dress(api_key, clip, outfit.read_bytes(), level, item)
     headers = {}
     if settings.save_steps:  # what the model made; the kiosk adds the finished photos to the same folder
         about = f"solution: {solution} ({STEPS_DIRS.get(solution, 'other')})\noutfit: {level}/{item}"
