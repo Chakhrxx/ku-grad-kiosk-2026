@@ -1,7 +1,7 @@
 # Deploy plan: Firebase / Google Cloud
 
 แผนเอา KU Grad Kiosk ขึ้น production บน Firebase (Blaze plan) + Google Cloud
-สถานะ: **CI/CD พร้อมแล้ว ยังไม่ได้ deploy จริง** มีโค้ดที่ต้องแก้ก่อน deploy (หัวข้อ 4) และต้องตั้ง Google Cloud ครั้งแรก (หัวข้อ 9)
+สถานะ: **workflow deploy พร้อมแล้ว ยังไม่ได้ deploy จริง** มีโค้ดที่ต้องแก้ก่อน deploy (หัวข้อ 4) และต้องตั้ง Google Cloud ครั้งแรก (หัวข้อ 9)
 
 ---
 
@@ -213,11 +213,10 @@ cd kiosk && bun run build && cd .. && firebase deploy --only hosting
 4. งบ Decart ต่อวัน — จะให้ระบบหยุดรับคนเมื่อถึงเพดานไหม
 5. เก็บ consent record กี่วัน (รูปลบ 7 วัน แต่หลักฐาน consent อาจต้องเก็บนานกว่า — ถาม DPO)
 
-## 9. CI/CD (GitHub Actions)
+## 9. Deploy (GitHub Actions)
 
 | Workflow | ทำงานเมื่อ | ทำอะไร |
 |---|---|---|
-| [ci.yml](../.github/workflows/ci.yml) | ทุก push และ pull request | kiosk: lint, test, typecheck + build · backend: ruff, pytest |
 | [deploy.yml](../.github/workflows/deploy.yml) | **กดเองเท่านั้น** (Actions → Deploy → Run workflow) | backend → Cloud Run, kiosk + ฉาก/tiles → Firebase Hosting ([firebase.json](../firebase.json)) |
 
 deploy ยังเป็นแบบกดเอง จนกว่าหัวข้อ 4 จะเสร็จ (ตอนนี้รูปยังเก็บบน disk ของ instance ซึ่งหายได้)
