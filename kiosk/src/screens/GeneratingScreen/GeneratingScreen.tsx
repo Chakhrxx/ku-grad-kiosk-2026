@@ -3,8 +3,8 @@ import { LoadingOrb, Screen } from '@/components'
 import { useI18n } from '@/hooks/useI18n'
 import { useKiosk } from '@/hooks/useKiosk'
 
-/** How long each line of the waiting text stays before the next. */
-const LINE_MS = 3500
+/** How long each line of the waiting text stays before the next; the last one stays until the photo is done, no loop. */
+const LINE_MS = 6000
 
 /**
  * While the photo is made: a turning orb of dots, with a line of waiting text under it that changes every few
@@ -19,7 +19,7 @@ export function GeneratingScreen() {
     return () => clearInterval(id)
   }, [])
 
-  const text = preview ? t.generatingScene : t.generating[line % t.generating.length]
+  const text = preview ? t.generatingScene : t.generating[Math.min(line, t.generating.length - 1)]
   return (
     <Screen>
       {/* the orb's middle at about y 660 of the 1280: on the teal below the white top, clear of the ribbon at the bottom */}

@@ -317,6 +317,7 @@ export function CameraScreen() {
   return (
     <Screen header={<KioskHeader title={t.camera.title} back="preview" showHome />}>
       <p className="mt-7.5 text-lg font-semibold text-primary">{t.camera.subtitle}</p>
+      <p className="mt-1 text-sm text-primary/70">{t.camera.tip}</p>
 
       {/* Viewfinder inside corner brackets. The raw camera shows first (mirrored like a selfie) and feeds the
           try-on stream; the dressed video is hidden, only the source for the scene canvas the visitor sees. */}
@@ -434,7 +435,7 @@ function grabView(video: HTMLVideoElement) {
 }
 
 /** Room around the visitor in the crop sent to the try-on model, as a share of their height: cap, sleeves, feet. */
-const CROP_MARGIN = 0.06
+const CROP_MARGIN = 0.03
 
 /**
  * The try-on model's 9:16 frame cut out of `view` around the visitor (`box`), at the camera's resolution, grey
