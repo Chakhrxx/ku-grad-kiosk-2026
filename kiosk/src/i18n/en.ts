@@ -68,6 +68,7 @@ export const en = {
   camera: {
     title: "Let's Start",
     subtitle: "Let's start creating your unforgettable moments.",
+    tip: "Stand close to the camera and to each other, full body in view, for a sharper photo.",
     getReady: "Let’s Get Ready..",
     hold: "Hold it…",
     play: "Let’s Play !",
