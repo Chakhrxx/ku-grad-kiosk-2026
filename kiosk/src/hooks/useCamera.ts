@@ -1,5 +1,14 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
+/** Ask for continuous autofocus where the camera has it, so a visitor who steps in or out stays sharp; ignored if not. */
+function keepInFocus(stream: MediaStream) {
+  const track = stream.getVideoTracks()[0]
+  const modes = (track?.getCapabilities?.() as { focusMode?: string[] } | undefined)?.focusMode
+  if (modes?.includes('continuous'))
+    // focusMode is not in TypeScript's DOM types yet
+    track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {})
+}
+
 /**
  * Open the camera into the returned video ref while `enabled`; it closes again when disabled or unmounted.
  * `stream` is also returned, for feeding the camera to the try-on stream.
@@ -20,6 +29,7 @@ export function useCamera(enabled: boolean, onError: () => void, video: MediaTra
       .then((s) => {
         opened = s
         if (closed) return s.getTracks().forEach((track) => track.stop())
+        keepInFocus(s)
         if (videoRef.current) videoRef.current.srcObject = s
         setStream(s)
       })
