@@ -217,10 +217,9 @@ cd kiosk && bun run build && cd .. && firebase deploy --only hosting
 
 | Workflow | ทำงานเมื่อ | ทำอะไร |
 |---|---|---|
-| [deploy.yml](../.github/workflows/deploy.yml) | **กดเองเท่านั้น** (Actions → Deploy → Run workflow) | backend → Cloud Run, kiosk + ฉาก/tiles → Firebase Hosting ([firebase.json](../firebase.json)) |
+| [deploy.yml](../.github/workflows/deploy.yml) | ทุก push เข้า `main` หรือกดเอง (Actions → Deploy → Run workflow) | ตรวจก่อน (kiosk: lint, test · backend: ruff, pytest) ถ้าผ่านค่อย backend → Cloud Run, kiosk + ฉาก/tiles → Firebase Hosting ([firebase.json](../firebase.json)) |
 
-deploy ยังเป็นแบบกดเอง จนกว่าหัวข้อ 4 จะเสร็จ (ตอนนี้รูปยังเก็บบน disk ของ instance ซึ่งหายได้)
-เสร็จแล้วค่อยเปลี่ยนเป็น deploy อัตโนมัติเมื่อ merge เข้า `main`
+deploy อัตโนมัติเมื่อ merge เข้า `main` แล้ว ทั้งที่หัวข้อ 4 ยังไม่เสร็จ (API ยังไม่มี sign-in ใครก็เรียกตัวที่เสียเงินได้)
 
 ตั้งค่าครั้งแรก (ไม่มี key เก็บใน GitHub เลย GitHub ขอสิทธิ์ Google ผ่าน Workload Identity Federation):
 
