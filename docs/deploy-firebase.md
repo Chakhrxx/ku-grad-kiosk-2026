@@ -25,7 +25,7 @@
 → `/api/upscale` (Real-ESRGAN ขยาย ×4) → `/api/matte` (IS-Net ตัดคนออกจากห้อง) → ประกอบกับฉาก **บนตู้** → `/api/generate` เก็บรูป ทำ QR
 
 backend **ไม่เบาแล้ว**: ตัดคนและขยายภาพบน CPU (หัวข้อ 3.1) ส่วนตู้ก็ยังต้องแรง เพราะรัน MediaPipe, อัดคลิป และประกอบรูปจากภาพ 4K
-ใช้แค่ Decart **batch** ไม่มี realtime stream แล้ว (โหมด `stream` ปิดใน [solution.ts](../kiosk/src/lib/solution.ts) โค้ดยังเก็บไว้)
+ใช้แค่ Decart **batch** (`vton-batch`) โค้ด realtime stream และโหมด `vton-live` ถูกลบออกแล้ว รวมถึง `/api/realtime-token`
 
 ## 2. Service ที่ใช้
 
@@ -72,7 +72,7 @@ Region: **asia-southeast1 (Singapore)** ทุกตัว — ใกล้ไ�
 
 ### 3.3 เครื่องตู้ (ฝั่ง client — สำคัญที่สุด)
 
-ตู้ต้องตัดคนด้วย MediaPipe (GPU) ระหว่างโพสท่า (โหมด `vton-live` ทุกเฟรม), อัดคลิป MP4 และประกอบรูปจากภาพ 4K ของกล้อง
+ตู้ต้องรัน MediaPipe (GPU) หาตำแหน่งคนและตัดคนลงฉาก, อัดคลิป MP4 และประกอบรูปจากภาพ 4K ของกล้อง
 
 | อุปกรณ์ | ขั้นต่ำที่แนะนำ |
 |---|---|

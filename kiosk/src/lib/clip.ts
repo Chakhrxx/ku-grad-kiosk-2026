@@ -1,6 +1,6 @@
 /**
- * Decart's try-on model (Lucy VTON) takes video only, so the vton-batch solution sends it the shot as a short,
- * still MP4 clip and reads one frame back out of the dressed clip it returns.
+ * Decart's try-on model (Lucy VTON) takes video only, so the shot goes to it as a short, still MP4 clip, and one
+ * frame is read back out of the dressed clip it returns.
  */
 
 /** How long the still clip runs: enough frames for the model, small enough to upload in a moment. */
@@ -16,10 +16,7 @@ export function clipOf(still: HTMLCanvasElement): Promise<Blob> {
   return record(canvas, () => ctx.drawImage(still, 0, 0)) // repainted, so the stream keeps producing frames of it
 }
 
-/** CLIP_MS of a canvas something else keeps drawing on (vton-live: the scene in the viewfinder), as MP4. */
-export const recordCanvas = (canvas: HTMLCanvasElement) => record(canvas)
-
-async function record(canvas: HTMLCanvasElement, paint?: () => void): Promise<Blob> {
+async function record(canvas: HTMLCanvasElement, paint: () => void): Promise<Blob> {
   const type = MP4_TYPES.find((t) => MediaRecorder.isTypeSupported(t))
   if (!type) throw new Error('this browser cannot record MP4')
   const stream = canvas.captureStream(CLIP_FPS)
@@ -31,7 +28,7 @@ async function record(canvas: HTMLCanvasElement, paint?: () => void): Promise<Bl
   recorder.start()
   const until = performance.now() + CLIP_MS
   while (performance.now() < until) {
-    paint?.()
+    paint()
     await new Promise((r) => requestAnimationFrame(r))
   }
   recorder.stop()

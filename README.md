@@ -1,12 +1,12 @@
 # ku-grad-kiosk-2026
 
-Graduation photo kiosk for Kasetsart University, Kamphaeng Saen campus. A graduate picks a degree, faculty and campus backdrop, then sees themselves live in the matching gown, standing on that backdrop. The photo is taken from that live picture, and they get it by QR code.
+Graduation photo kiosk for Kasetsart University, Kamphaeng Saen campus. A graduate picks a degree, faculty and campus backdrop, then poses in front of the camera. The photo shows them in the matching gown, on that backdrop and in the room, and they get it by QR code.
 
 How a photo is made:
 
-1. The kiosk camera feeds Decart's realtime try-on stream (`lucy-vton-latest`), which dresses the visitor in the chosen gown. The browser gets a short-lived token from the backend, so the API key never reaches the kiosk.
-2. In the browser, MediaPipe cuts the dressed visitor out and draws them on the campus photo, every frame.
-3. At the end of the countdown that picture is the photo. The backend adds the frame, stores it for 7 days and returns the QR code.
+1. At the end of the countdown the kiosk records a one-second still clip of the camera frame and sends it to `/api/dress`. The backend runs it through Decart's try-on model (`lucy-vton-latest`) as one batch job, so the API key never reaches the kiosk.
+2. The kiosk takes a frame of the dressed clip, puts the visitor's real face back, and the backend sharpens it (`/api/upscale`) and cuts the visitor out (`/api/matte`).
+3. The kiosk puts them on the campus photo, and makes a second photo in the room. The backend adds the frame, stores both for 7 days and returns the QR codes.
 
 ```
 kiosk/                          React 19 + Vite + TypeScript + Tailwind v4 (bun)
@@ -16,7 +16,7 @@ kiosk/                          React 19 + Vite + TypeScript + Tailwind v4 (bun)
     components/<Name>/            Presentational UI (with <Name>.stories.tsx, and <Name>.test.tsx where it has behaviour)
     screens/<Name>Screen/         One per kiosk step, wired to context via hooks
     context/                      I18nProvider (language), KioskProvider (the visitor's session and flow)
-    hooks/                        useTryOnStream (Decart), useLiveBackground (MediaPipe), useCamera,
+    hooks/                        useLiveBackground (MediaPipe), useCamera,
                                   useCountdown, useIdleTimer, useScale, useI18n, useKiosk
     i18n/                         th.ts, en.ts
     lib/                          cn, assetUrls, carousel, waves, hideBrokenImage
@@ -26,9 +26,9 @@ backend/                        Python 3.12+ + FastAPI (pyproject.toml, pytest, 
   app/
     main.py                       create_app(): routers + static mounts
     config.py                     Settings (pydantic-settings, reads env or backend/.env)
-    routers/                      catalog, consent, realtime (stream token, gown reference), photos (store, QR, download page)
+    routers/                      catalog, consent, photos (try-on, matte, upscale, store, QR, download page)
     schemas/                      Pydantic request/response models
-    services/                     photos, frame, catalog, storage, realtime
+    services/                     catalog, dress (Decart try-on), frame, matte, storage, upscale
     templates/download.html       Page the QR code opens
   assets/                       Gowns, tiles, backgrounds, frames, catalog.json (see assets/README.md)
   tests/

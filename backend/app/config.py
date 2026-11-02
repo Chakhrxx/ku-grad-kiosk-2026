@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 10_000_000
 
     save_steps: bool = False
-    """Debug only: keep each shot in data/steps/<solution>/<01, 02, ...>/ (the dressed clip, both finished photos
+    """Debug only: keep each shot in data/steps/shots/<01, 02, ...>/ (the dressed clip, both finished photos
     and an info.txt), to share with the team. Never on with real visitors: not covered by the 7-day deletion."""
 
 

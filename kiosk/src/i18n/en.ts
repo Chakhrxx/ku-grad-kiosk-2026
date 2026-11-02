@@ -70,10 +70,8 @@ export const en = {
     subtitle: "Let's start creating your unforgettable moments.",
     tip: "Stand close to the camera and to each other, full body in view, for a sharper photo.",
     getReady: "Let’s Get Ready..",
-    hold: "Hold it…",
     play: "Let’s Play !",
     shutter: "Take photo",
-    dressing: "Preparing your photo…",
   },
   /** Shown in turn while the photo is made, so the wait has something to read. */
   generating: [

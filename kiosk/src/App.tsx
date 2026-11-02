@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { HandCursor, Stage, TouchRipple } from '@/components'
 import { I18nProvider } from '@/context/I18nProvider'
 import { KioskProvider } from '@/context/KioskProvider'
 import { useKiosk } from '@/hooks/useKiosk'
+import { showMouseWhileMoving } from '@/lib/mouseCursor'
 import {
   CameraScreen,
   ChooseGradeScreen,
@@ -44,6 +46,7 @@ function CurrentScreen() {
 }
 
 export default function App() {
+  useEffect(showMouseWhileMoving, [])
   return (
     <I18nProvider>
       <KioskProvider>

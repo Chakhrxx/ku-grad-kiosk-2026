@@ -1,8 +1,7 @@
 import { FilesetResolver, ImageSegmenter } from '@mediapipe/tasks-vision'
-import { useEffect, useRef, useState, type RefObject } from 'react'
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '@/config'
 import { type Box, faceBox, fitFace, meanColor, scaleBox, squareAround, tintGain } from '@/lib/faceRestore'
-import { personOpacity, updatePersonAlpha } from '@/lib/personMask'
+import { personOpacity } from '@/lib/personMask'
 import { type Placement, placeSubject } from '@/lib/subject'
 
 // Self-hosted (kiosk/public/mediapipe), so the kiosk never depends on a CDN being reachable.
@@ -14,8 +13,6 @@ const BACKGROUND_CLASS = 0
 const HAIR_CLASS = 1
 const BODY_SKIN_CLASS = 2
 const FACE_CLASS = 3
-/** Portrait crop of the stream that gets segmented: the viewfinder's shape, wider than the 9:16 photo. */
-const CROP_ASPECT = 554 / 680
 
 let segmenter: Promise<ImageSegmenter> | undefined
 /** One segmenter for the life of the page; loading it takes a moment, so it is reused across visitors. */
@@ -45,124 +42,6 @@ function putMask(mask: HTMLCanvasElement, alpha: Float32Array, width: number, he
   for (let i = 0; i < alpha.length; i++) pixels.data[i * 4 + 3] = alpha[i] * 255
   if (mask.width !== width || mask.height !== height) Object.assign(mask, { width, height })
   mask.getContext('2d')!.putImageData(pixels, 0, 0)
-}
-
-/**
- * Cut the visitor out of `source` live and draw them on the campus background into the returned canvas,
- * like a video call's virtual background. `capture()` renders one full-size, unmirrored photo of it.
- *
- * Each frame, the portrait middle of the (landscape) stream is copied to `frame` and segmented there, so the
- * model sees the visitor large rather than a small figure in a wide picture; `frame` and `mask` then always
- * belong to the same moment, for both the live view and the photo.
- *
- * `shift` moves the visitor right by that fraction of the width, for scenes with art on the left. `mirror: false`
- * keeps the canvas the right way round, for recording it (vton-live mirrors it on screen with CSS instead), and
- * `behind` is drawn on the scene before the visitor each frame (vton-live: the photo header's fade).
- */
-export function useLiveBackground(
-  source: RefObject<HTMLVideoElement | null>,
-  backgroundSrc: string,
-  enabled: boolean,
-  shift = 0,
-  mirror = true,
-  behind?: (ctx: CanvasRenderingContext2D) => void,
-) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const frameRef = useRef<HTMLCanvasElement | null>(null)
-  const maskRef = useRef<HTMLCanvasElement | null>(null)
-  const backgroundRef = useRef<HTMLImageElement | null>(null)
-  const [ready, setReady] = useState(false)
-  const readyNow = useRef(false)
-
-  useEffect(() => {
-    if (!enabled) return
-    let raf = 0
-    let closed = false
-    const bg = new Image()
-    bg.src = backgroundSrc
-    backgroundRef.current = bg
-    const frame = document.createElement('canvas')
-    const mask = document.createElement('canvas')
-    frameRef.current = frame
-    maskRef.current = mask
-    let alpha = new Float32Array(0)
-    let lastTime = -1
-
-    // once per new camera frame where the browser can tell (requestVideoFrameCallback): no frame segmented twice or
-    // skipped, and drawn in step with the camera; otherwise every display frame, skipping the unchanged ones
-    let frameCall = 0
-    let calledOn: HTMLVideoElement | null = null
-    loadSegmenter()
-      .then((seg) => {
-        const tick = () => {
-          if (closed) return
-          const next = source.current
-          if (next && 'requestVideoFrameCallback' in next) {
-            calledOn = next
-            frameCall = next.requestVideoFrameCallback(tick)
-          } else raf = requestAnimationFrame(tick)
-          const video = source.current
-          const canvas = canvasRef.current
-          if (!video || !canvas || video.readyState < 2 || video.currentTime === lastTime) return
-          lastTime = video.currentTime
-
-          // portrait middle of the stream, full height
-          const h = video.videoHeight
-          const w = Math.min(video.videoWidth, Math.round(h * CROP_ASPECT))
-          if (frame.width !== w || frame.height !== h) Object.assign(frame, { width: w, height: h })
-          frame.getContext('2d')!.drawImage(video, (video.videoWidth - w) / 2, 0, w, h, 0, 0, w, h)
-
-          const result = seg.segmentForVideo(frame, performance.now())
-          const confidence = result.confidenceMasks?.[BACKGROUND_CLASS]
-          if (confidence) {
-            const { width, height } = confidence
-            if (alpha.length !== width * height) alpha = new Float32Array(width * height)
-            putMask(mask, updatePersonAlpha(confidence.getAsFloat32Array(), alpha), width, height)
-          }
-          result.close()
-
-          draw(canvas.getContext('2d')!, canvas.width, canvas.height, frame, mask, bg, mirror, shift, { behind })
-          if (!readyNow.current) {
-            readyNow.current = true
-            setReady(true)
-          }
-        }
-        tick()
-      })
-      .catch((e) => console.error('live background failed', e))
-
-    return () => {
-      closed = true
-      cancelAnimationFrame(raf)
-      calledOn?.cancelVideoFrameCallback(frameCall)
-    }
-  }, [enabled, backgroundSrc, source, shift, mirror, behind])
-
-  /**
-   * This moment of the scene at `width`×`height`, the background crisp and the visitor unmirrored; `behind` is drawn
-   * on the scene before the visitor (the header's fade, so it never washes their head out).
-   */
-  const still = (width = PHOTO_WIDTH, height = PHOTO_HEIGHT, behind?: (ctx: CanvasRenderingContext2D) => void) => {
-    const frame = frameRef.current
-    const mask = maskRef.current
-    const bg = backgroundRef.current
-    if (!frame || !mask || !bg || !readyNow.current) throw new Error('live background not ready')
-    const canvas = canvasOf(width, height)
-    draw(canvas.getContext('2d')!, width, height, frame, mask, bg, false, shift, { behind })
-    return canvas
-  }
-
-  /** The photo: full size, the background crisp and the visitor unmirrored; `finish` draws on top (the header). */
-  const capture = async (finish?: (ctx: CanvasRenderingContext2D) => Promise<void>): Promise<Blob> => {
-    const canvas = still()
-    const ctx = canvas.getContext('2d')!
-    await finish?.(ctx)
-    return new Promise((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('capture failed'))), 'image/jpeg', 0.92),
-    )
-  }
-
-  return { canvasRef, ready, readyNow, capture, still }
 }
 
 /** Options for a still on the scene: what goes between the scene and the visitor, and how they are cut out. */
@@ -232,7 +111,7 @@ async function composeScene(
   const ctx = canvas.getContext('2d')!
   const k = H / fullHeight // still px to photo px
   const place = centre && body ? placeSubject(scaleBox(body, k, k, left * k, lift * k), W, H) : undefined
-  draw(ctx, W, H, still, mask, bg, false, shift, { behind, place })
+  draw(ctx, W, H, still, mask, bg, shift, { behind, place })
   return canvas
 }
 
@@ -273,15 +152,10 @@ function draw(
   frame: HTMLCanvasElement,
   mask: HTMLCanvasElement,
   bg: HTMLImageElement,
-  mirror: boolean,
   shift: number,
   { behind, place }: { behind?: (ctx: CanvasRenderingContext2D) => void; place?: Placement } = {},
 ) {
   // the visitor: the segmented frame, keeping only where the mask says "person" (frame and mask share geometry).
-  // A picture taller than the photo (vton-live's 9:16) has them in its photo-shaped middle, as large as the photo
-  // will show them, not blown up to its full height; above and below is scene only, cut off later.
-  const areaH = Math.min(H, Math.round((W * PHOTO_HEIGHT) / PHOTO_WIDTH))
-  const areaY = (H - areaH) / 2
   const person = personLayer(W, H)
   const p = person.getContext('2d')!
   // high-quality resampling, and only once: placed (moved and scaled) as it is drawn, not scaled again after
@@ -290,12 +164,12 @@ function draw(
     p.translate(place.dx, place.dy)
     p.scale(place.scale, place.scale)
   }
-  const v = cover(frame.width, frame.height, W, areaH)
-  p.drawImage(frame, v.sx, v.sy, v.sw, v.sh, 0, areaY, W, areaH)
+  const v = cover(frame.width, frame.height, W, H)
+  p.drawImage(frame, v.sx, v.sy, v.sw, v.sh, 0, 0, W, H)
   p.globalCompositeOperation = 'destination-in'
   const kx = mask.width / frame.width
   const ky = mask.height / frame.height
-  p.drawImage(mask, v.sx * kx, v.sy * ky, v.sw * kx, v.sh * ky, 0, areaY, W, areaH)
+  p.drawImage(mask, v.sx * kx, v.sy * ky, v.sw * kx, v.sh * ky, 0, 0, W, H)
 
   if (bg.complete && bg.naturalWidth) {
     const b = cover(bg.naturalWidth, bg.naturalHeight, W, H)
@@ -305,11 +179,7 @@ function draw(
   }
   behind?.(ctx)
   ctx.save()
-  ctx.translate(shift * W, 0) // to the right on screen too: the scene is never mirrored
-  if (mirror) {
-    ctx.translate(W, 0)
-    ctx.scale(-1, 1) // a selfie view for posing; the background itself stays the right way round
-  }
+  ctx.translate(shift * W, 0) // the scene is never mirrored
   ctx.drawImage(person, 0, 0)
   ctx.restore()
 }
@@ -346,35 +216,6 @@ function boxOfAlpha(mask: HTMLCanvasElement, width: number) {
   for (let i = 0; i < score.length; i++) score[i] = px[i * 4 + 3] / 255
   const box = faceBox(score, w, 0.6, 0.002)
   return box && scaleBox(box, width / w, width / w)
-}
-
-/** How far a colour may move between the scene and the model's copy of it before it counts as changed (0..255). */
-const CHANGE_LOW = 36
-const CHANGE_HIGH = 56
-
-/**
- * Where `after` clearly differs from `before` (same framing), as alpha on a `width`×`height` grid: both softened a
- * little so compression noise doesn't count, then specks a pixel wide dropped (an opening).
- */
-function changed(before: CanvasImageSource, after: CanvasImageSource, width: number, height: number) {
-  const pixels = (source: CanvasImageSource) => {
-    const c = canvasOf(width, height)
-    const ctx = c.getContext('2d', { willReadFrequently: true })!
-    ctx.filter = 'blur(1px)'
-    ctx.drawImage(source, 0, 0, width, height)
-    return ctx.getImageData(0, 0, width, height).data
-  }
-  const a = pixels(before)
-  const b = pixels(after)
-  const out = new ImageData(width, height)
-  for (let i = 0; i < a.length; i += 4) {
-    const d = Math.max(Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]))
-    const t = Math.min(1, Math.max(0, (d - CHANGE_LOW) / (CHANGE_HIGH - CHANGE_LOW)))
-    out.data[i + 3] = t * 255
-  }
-  const mask = canvasOf(width, height)
-  mask.getContext('2d')!.putImageData(out, 0, 0)
-  return grow(invert(grow(invert(mask), 1)), 1)
 }
 
 /** Where the visitor stands in `image`, as a box in its px (one rough pass of the segmenter); null if nobody. */
@@ -555,51 +396,5 @@ export async function restoreFace(
   f.drawImage(real, 0, 0)
   ctx.drawImage(face, 0, 0)
   console.info(`[photo] face restored: scale ${fit.scale.toFixed(2)}, moved ${fit.dx.toFixed(0)},${fit.dy.toFixed(0)}px`)
-  return out
-}
-
-/**
- * vton-live: the try-on model sends the whole picture back as compressed 720p video, so the scene, which it
- * should not touch at all, comes back soft. Put the sharp scene back everywhere that is not the visitor (in
- * either picture, so a gown wider than their clothes stays the model's), with a feathered edge.
- */
-export async function keepSharpScene(
-  sharp: HTMLCanvasElement,
-  dressed: ImageBitmap | HTMLCanvasElement,
-  matte?: ImageBitmap,
-) {
-  const seg = await loadSegmenter()
-  const { width: W, height: H } = sharp
-  const whole = { x: 0, y: 0, w: W, h: H }
-  const size = [Math.round(W / 2), Math.round(H / 2)] // the segmenter's grid is coarser than this anyway
-  const [before] = segment(seg, sharp, whole, size, [BACKGROUND_CLASS]).scores
-  // person = not background, in either picture
-  const person = (s: Scores): Scores => ({ ...s, score: s.score.map((b) => 1 - b) })
-  let visitor: HTMLCanvasElement
-  if (matte) {
-    // the dressed visitor as the server's matting model cut them out (finer than the kiosk's segmenter), and
-    // whatever the model clearly changed: the scene was there before, so that is what it added. A tassel hanging
-    // against the header's white is lost to both segmenters, but not to the difference
-    visitor = alphaOf(person(before))
-    const v = visitor.getContext('2d')!
-    v.drawImage(matte, 0, 0, visitor.width, visitor.height)
-    v.drawImage(changed(sharp, dressed, visitor.width, visitor.height), 0, 0)
-  } else {
-    const after = segment(seg, dressed, { x: 0, y: 0, w: dressed.width, h: dressed.height }, size, [BACKGROUND_CLASS])
-    // only just past the edge: further out it takes in the model's own shadows, dark patches on the sharp ground
-    visitor = grow(alphaOf(person(before), person(after.scores[0])), Math.max(1, size[0] / 360))
-  }
-
-  const out = canvasOf(W, H)
-  const ctx = out.getContext('2d')!
-  ctx.drawImage(sharp, 0, 0)
-  const layer = canvasOf(W, H)
-  const l = layer.getContext('2d')!
-  l.filter = `blur(${matte ? 1.5 : Math.max(2, W / 270)}px)` // the matte's edge is fine already: a wide blur fades cords
-  l.drawImage(visitor, 0, 0, W, H)
-  l.filter = 'none'
-  l.globalCompositeOperation = 'source-in'
-  l.drawImage(dressed, 0, 0, W, H)
-  ctx.drawImage(layer, 0, 0)
   return out
 }

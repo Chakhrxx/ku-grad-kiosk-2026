@@ -37,25 +37,13 @@ export function giveConsent(session: string, lang: string) {
   })
 }
 
-/** Short-lived Decart client token for the try-on stream (the real key never reaches the browser). */
-export async function getRealtimeToken(session: string): Promise<string> {
-  const { apiKey } = await request<{ apiKey: string }>('/api/realtime-token', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ session }),
-  })
-  return apiKey
-}
-
-export const gownUrl = (level: string, item: string) => `/api/gown/${level}/${item}`
-
 /**
  * A one-second clip of the visitor dressed in the chosen outfit by the server's try-on model (an MP4 back), and,
  * when the server keeps debug steps (SAVE_STEPS), the folder they went to.
  */
 export async function dressPhoto(
   clip: Blob,
-  fields: { session: string; level: string; item: string; solution: string }, // solution: for the debug folders
+  fields: { session: string; level: string; item: string },
 ) {
   const body = new FormData()
   body.append('photo', clip, 'shot.mp4')

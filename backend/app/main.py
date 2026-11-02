@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import Settings, get_settings
 from app.middleware import add_cache_control, log_api_time
-from app.routers import catalog, consent, photos, realtime
+from app.routers import catalog, consent, photos
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -16,7 +16,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(catalog.router)
     app.include_router(consent.router)
     app.include_router(photos.router)
-    app.include_router(realtime.router)
 
     app.mount("/assets", StaticFiles(directory=settings.assets_dir), name="assets")
     if settings.kiosk_dist.is_dir():  # built kiosk app, mounted last so API routes win

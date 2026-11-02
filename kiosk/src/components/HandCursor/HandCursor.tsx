@@ -9,8 +9,13 @@ const INDEX_TIP = 8
 const DWELL_MS = 900
 /** After a tap the next one waits this much longer, so a button under the cursor on the next screen isn't tapped by accident. */
 const AFTER_TAP_MS = 800
-/** Without a hand this long the cursor goes and the next hand is a new visitor. */
+/** Without a hand this long the cursor goes. */
 const LOST_MS = 600
+/**
+ * Without a hand this long the next one is a new visitor and wakes the home screen. Longer than LOST_MS: tracking
+ * drops a hand for a moment now and then, and the hand that just pressed Home must not wake it straight away.
+ */
+const NEW_HAND_MS = 3000
 /** How much of each new reading the cursor takes; less is steadier, more is quicker. */
 const SMOOTH = 0.35
 const TAPPABLE = "button:not(:disabled), [role='button'], [role='menuitemradio'], a"
@@ -45,7 +50,6 @@ export function HandCursor() {
       if (!d) return
       d.style.opacity = at ? '1' : '0'
       // the same two looks as the mouse cursor in global.css: a plain dot, swelling into a lit one over a button
-      document.documentElement.toggleAttribute('data-hand', !!at)
       idle.current?.setAttribute('opacity', over ? '0' : '1')
       lit.current?.setAttribute('opacity', over ? '1' : '0')
       if (at) d.style.transform = `translate(${at.x - RADIUS}px, ${at.y - RADIUS}px)`
@@ -76,7 +80,7 @@ export function HandCursor() {
       await video.play()
 
       let cursor: Point | null = null
-      let lastSeen = 0
+      let lastSeen = -Infinity // the first hand is always new
       let lastVideoTime = -1
       let target: Element | null = null
       let since = 0
@@ -90,7 +94,7 @@ export function HandCursor() {
           if (tip) {
             const to = toScreen(tip, video.videoWidth / video.videoHeight, innerWidth, innerHeight)
             if (!cursor) {
-              window.dispatchEvent(new PointerEvent('pointerdown')) // a new hand wakes the home screen
+              if (now - lastSeen > NEW_HAND_MS) window.dispatchEvent(new PointerEvent('pointerdown')) // wakes the home screen
               cursor = to
             } else cursor = { x: cursor.x + (to.x - cursor.x) * SMOOTH, y: cursor.y + (to.y - cursor.y) * SMOOTH }
             lastSeen = now
@@ -124,7 +128,6 @@ export function HandCursor() {
       stopped = true
       cancelAnimationFrame(frame)
       stream?.getTracks().forEach((t) => t.stop())
-      document.documentElement.removeAttribute('data-hand')
     }
   }, [])
 

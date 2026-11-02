@@ -2,32 +2,7 @@ import httpx
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from app.services import dress, realtime
-
-
-def test_token_needs_consent(client: TestClient):
-    assert client.post("/api/realtime-token", json={"session": "never-agreed"}).status_code == 403
-
-
-def test_token_is_minted_for_a_consented_session(client: TestClient, consented: str, monkeypatch):
-    sent = {}
-
-    def fake_post(url, headers, json, timeout):
-        sent.update(url=url, key=headers["X-API-KEY"], body=json)
-        body = {"apiKey": "ek_short", "token": "jwt", "expiresAt": "2026-10-21T00:01:00Z"}
-        return httpx.Response(200, json=body, request=httpx.Request("POST", url))
-
-    monkeypatch.setattr(realtime.httpx, "post", fake_post)
-    r = client.post("/api/realtime-token", json={"session": consented})
-    assert r.status_code == 200
-    assert r.json() == {"apiKey": "ek_short", "expiresAt": "2026-10-21T00:01:00Z"}
-    assert sent["key"] == "test-key" and "lucy-vton-latest" in sent["body"]["allowedModels"]
-
-
-def test_gown_reference_is_served_and_unknown_choices_refused(client: TestClient):
-    assert client.get("/api/gown/bachelor/engineering").content == b"gown"
-    assert client.get("/api/gown/bachelor/fisheries").status_code == 404  # no photo yet
-    assert client.get("/api/gown/phd/engineering").status_code == 400
+from app.services import dress
 
 
 def test_dress_needs_consent(client: TestClient):
@@ -85,13 +60,13 @@ def test_a_failed_try_on_job_is_a_502(client: TestClient, consented: str, monkey
 def test_steps_keep_the_dressed_clip_and_both_photos(settings, client: TestClient, consented: str, monkeypatch):
     settings.save_steps = True
     fake_decart(monkeypatch)
-    data = {"session": consented, "level": "bachelor", "item": "engineering", "solution": "vton-live"}
+    data = {"session": consented, "level": "bachelor", "item": "engineering"}
     folder = client.post("/api/dress", files=CLIP, data=data).headers["x-steps"]
-    assert folder == "preview-bg/01"
+    assert folder == "shots/01"
     for name in ("result1.jpg", "result2.jpg"):
         r = client.post(f"/api/steps/{folder}", data={"name": name}, files={"photo": ("p.jpg", b"photo", "image/jpeg")})
         assert r.status_code == 204
-    saved = settings.data_dir / "steps" / "preview-bg" / "01"
+    saved = settings.data_dir / "steps" / "shots" / "01"
     assert sorted(p.name for p in saved.iterdir()) == ["dressed.mp4", "info.txt", "result1.jpg", "result2.jpg"]
     photo = {"photo": ("p.jpg", b"photo", "image/jpeg")}
     assert client.post(f"/api/steps/{folder}", data={"name": "../x.jpg"}, files=photo).status_code == 404
@@ -100,7 +75,7 @@ def test_steps_keep_the_dressed_clip_and_both_photos(settings, client: TestClien
 
 def test_steps_refused_when_not_saving(client: TestClient):
     files = {"photo": ("r.jpg", b"photo", "image/jpeg")}
-    assert client.post("/api/steps/preview-bg/01", data={"name": "result1.jpg"}, files=files).status_code == 404
+    assert client.post("/api/steps/shots/01", data={"name": "result1.jpg"}, files=files).status_code == 404
 
 
 def test_matte_needs_consent_and_returns_the_mask(client: TestClient, consented: str):
@@ -166,5 +141,12 @@ def test_upscale_runs_the_real_model_x4_from_720_wide():
 def test_uploads_over_the_limit_and_a_missing_key_are_refused(settings, client: TestClient, consented: str):
     settings.max_upload_bytes = 3
     assert client.post("/api/matte", files=CLIP, data={"session": consented}).status_code == 413
+    settings.max_upload_bytes = 1_000_000
     settings.decart_api_key = SecretStr("")
-    assert client.post("/api/realtime-token", json={"session": consented}).status_code == 500
+    data = {"session": consented, "level": "bachelor", "item": "engineering"}
+    assert client.post("/api/dress", files=CLIP, data=data).status_code == 500
+
+
+def test_no_realtime_tokens_are_handed_out(client: TestClient, consented: str):
+    # the realtime stream is billed per second: a token for it would let anyone spend Decart credit
+    assert client.post("/api/realtime-token", json={"session": consented}).status_code in (404, 405)
