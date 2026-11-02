@@ -19,11 +19,9 @@ const NEW_HAND_MS = 3000
 /** How much of each new reading the cursor takes; less is steadier, more is quicker. */
 const SMOOTH = 0.35
 const TAPPABLE = "button:not(:disabled), [role='button'], [role='menuitemradio'], a"
-/** Half the box the cursor is drawn in (88px). */
+/** Half the box the cursor is drawn in: the size of the pressed-looking dot the mouse cursor swells into (88px). */
 const RADIUS = 44
 const CIRCLE = 2 * Math.PI * 40
-/** The mouse cursor's teal (global.css); the hand's is an open ring, the mouse's a dot. */
-const COLOR = '#006c67'
 
 /**
  * For a kiosk with no touch and no mouse: the camera finds the visitor's index finger and a cursor follows it; holding
@@ -51,7 +49,7 @@ export function HandCursor() {
       const d = dot.current
       if (!d) return
       d.style.opacity = at ? '1' : '0'
-      // its own look, not the mouse cursor's (global.css): an open ring, filling in over a button
+      // the same two looks as the mouse cursor in global.css: a plain dot, swelling into a lit one over a button
       idle.current?.setAttribute('opacity', over ? '0' : '1')
       lit.current?.setAttribute('opacity', over ? '1' : '0')
       if (at) d.style.transform = `translate(${at.x - RADIUS}px, ${at.y - RADIUS}px)`
@@ -142,17 +140,29 @@ export function HandCursor() {
     >
       <svg width={RADIUS * 2} height={RADIUS * 2} viewBox="0 0 88 88">
         <defs>
+          <radialGradient id="hand-h">
+            <stop offset="0.55" stopColor="#006c67" stopOpacity="0.22" />
+            <stop offset="1" stopColor="#006c67" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="hand-f">
+            <stop offset="0" stopColor="#0b8a83" stopOpacity="0.75" />
+            <stop offset="1" stopColor="#006c67" stopOpacity="0.3" />
+          </radialGradient>
           <filter id="hand-s" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.35" />
+            <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#003c39" floodOpacity="0.3" />
           </filter>
         </defs>
-        <g ref={idle} filter="url(#hand-s)">
-          <circle cx="44" cy="44" r="18" fill="none" stroke="#fff" strokeWidth="7" />
-          <circle cx="44" cy="44" r="18" fill="none" stroke={COLOR} strokeWidth="4" />
+        <g ref={idle} transform="translate(16 16) scale(2)">
+          <circle cx="14" cy="14" r="13" fill="url(#hand-h)" />
+          <circle cx="14" cy="14" r="8" fill="rgb(255 255 255 / 0.4)" stroke="#006c67" strokeWidth="1.6" />
+          <circle cx="14" cy="14" r="2.6" fill="#006c67" />
         </g>
-        <g ref={lit} opacity="0" filter="url(#hand-s)">
-          <circle cx="44" cy="44" r="26" fill={COLOR} fillOpacity="0.35" stroke="#fff" strokeWidth="7" />
-          <circle cx="44" cy="44" r="26" fill="none" stroke={COLOR} strokeWidth="4" />
+        <g ref={lit} opacity="0" transform="scale(2)">
+          <g filter="url(#hand-s)">
+            <circle cx="22" cy="22" r="15" fill="url(#hand-f)" stroke="#fff" strokeWidth="2.2" />
+          </g>
+          <circle cx="22" cy="22" r="16.6" fill="none" stroke="#006c67" strokeOpacity="0.55" strokeWidth="1" />
+          <circle cx="22" cy="22" r="3.6" fill="#fff" />
         </g>
         <circle
           ref={ring}
@@ -160,8 +170,8 @@ export function HandCursor() {
           cy="44"
           r="40"
           fill="none"
-          stroke={COLOR}
-          strokeWidth="5"
+          stroke="#006c67"
+          strokeWidth="4"
           strokeLinecap="round"
           strokeDasharray={CIRCLE}
           strokeDashoffset={CIRCLE}
