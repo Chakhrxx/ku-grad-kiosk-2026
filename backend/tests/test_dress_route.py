@@ -145,3 +145,8 @@ def test_uploads_over_the_limit_and_a_missing_key_are_refused(settings, client: 
     settings.decart_api_key = SecretStr("")
     data = {"session": consented, "level": "bachelor", "item": "engineering"}
     assert client.post("/api/dress", files=CLIP, data=data).status_code == 500
+
+
+def test_no_realtime_tokens_are_handed_out(client: TestClient, consented: str):
+    # the realtime stream is billed per second: a token for it would let anyone spend Decart credit
+    assert client.post("/api/realtime-token", json={"session": consented}).status_code in (404, 405)
