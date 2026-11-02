@@ -52,7 +52,6 @@ export function HandCursor() {
       if (!d) return
       d.style.opacity = at ? '1' : '0'
       // its own look, not the mouse cursor's (global.css): an open ring, filling in over a button
-      document.documentElement.toggleAttribute('data-hand', !!at)
       idle.current?.setAttribute('opacity', over ? '0' : '1')
       lit.current?.setAttribute('opacity', over ? '1' : '0')
       if (at) d.style.transform = `translate(${at.x - RADIUS}px, ${at.y - RADIUS}px)`
@@ -131,7 +130,6 @@ export function HandCursor() {
       stopped = true
       cancelAnimationFrame(frame)
       stream?.getTracks().forEach((t) => t.stop())
-      document.documentElement.removeAttribute('data-hand')
     }
   }, [])
 
