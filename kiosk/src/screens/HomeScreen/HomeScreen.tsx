@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import flagGb from "@/assets/flags/gb.png";
 import flagTh from "@/assets/flags/th.png";
 import kuLogo from "@/assets/ku-logo.png";
-import { Button, Dropdown, Pill, Screen } from "@/components";
+import { Button, Pill, Screen } from "@/components";
 import { HOME_ENGAGED_IDLE_MS } from "@/config";
 import { useI18n } from "@/hooks/useI18n";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
@@ -10,12 +10,6 @@ import { en } from "@/i18n/en";
 import { th } from "@/i18n/th";
 import { useKiosk } from "@/hooks/useKiosk";
 import { cn } from "@/lib/cn";
-import {
-  getSolution,
-  setSolution,
-  SOLUTION_PICKER,
-  SOLUTIONS,
-} from "@/lib/solution";
 import type { Lang } from "@/types";
 
 const LANGUAGES: { id: Lang; label: string; flag: string }[] = [
@@ -42,7 +36,6 @@ export function HomeScreen() {
     return () => removeEventListener("pointerdown", engage);
   }, []);
   useIdleTimer(engaged, HOME_ENGAGED_IDLE_MS, () => setEngaged(false));
-  const [solution, pickSolution] = useState(getSolution);
   // the tide comes in only while nobody is there, still once someone is reading them
   const drift = engaged ? "" : DRIFT;
 
@@ -60,19 +53,6 @@ export function HomeScreen() {
         )
       }
     >
-      {/* ponytail: test-only switch while stream and gen are compared; delete with the losing solution */}
-      {SOLUTION_PICKER && (
-        <Dropdown
-          caption="Solution · test"
-          options={SOLUTIONS}
-          value={solution}
-          onChange={(next) => {
-            setSolution(next);
-            pickSolution(next);
-          }}
-          className="absolute top-8 right-10 z-10"
-        />
-      )}
       <div className="flex flex-col items-center text-center text-primary">
         {/* a white silhouette behind the logo, so under the tide it pales like foam instead of letting the dots through */}
         <div className="relative mt-29 w-60">

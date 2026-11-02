@@ -23,15 +23,15 @@ def add_frame(photo: bytes, frame: Path) -> bytes:
     return buf.getvalue()
 
 
-# Debug folders, one per solution being compared, then 01, 02, ... per shot (to share with the team)
-STEPS_DIRS = {"vton-live": "preview-bg", "vton-batch": "no-preview-bg"}
+# Debug folders, numbered 01, 02, ... per shot (to share with the team)
+STEPS_GROUP = "shots"
 _steps_lock = threading.Lock()
 
 
-def new_steps_folder(data_dir: Path, solution: str, about: str) -> str:
-    """Debug (SAVE_STEPS): the next numbered folder for this solution's shots, with `about` as its info.txt; its
-    path under data/steps ("no-preview-bg/03")."""
-    group = data_dir / "steps" / STEPS_DIRS.get(solution, "other")
+def new_steps_folder(data_dir: Path, about: str) -> str:
+    """Debug (SAVE_STEPS): the next numbered folder for a shot, with `about` as its info.txt; its path under
+    data/steps ("shots/03")."""
+    group = data_dir / "steps" / STEPS_GROUP
     with _steps_lock:
         group.mkdir(parents=True, exist_ok=True)
         taken = [int(d.name) for d in group.iterdir() if d.is_dir() and d.name.isdigit()]

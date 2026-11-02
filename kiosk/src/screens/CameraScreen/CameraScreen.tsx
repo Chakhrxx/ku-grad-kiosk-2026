@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { dressPhoto, matteOf, saveSteps, upscaleOf } from '@/api/client'
 import { Screen, ShutterButton } from '@/components'
 import { COUNTDOWN_SECONDS, PHOTO_HEIGHT, PHOTO_WIDTH } from '@/config'
@@ -6,85 +6,37 @@ import { useCamera } from '@/hooks/useCamera'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useI18n } from '@/hooks/useI18n'
 import { useKiosk } from '@/hooks/useKiosk'
-import {
-  compositePhoto,
-  keepSharpScene,
-  nextFrame,
-  loadSegmenter,
-  personBox,
-  restoreFace,
-  useLiveBackground,
-} from '@/hooks/useLiveBackground'
-import { TRYON_CAMERA, useTryOnStream } from '@/hooks/useTryOnStream'
+import { compositePhoto, nextFrame, loadSegmenter, personBox, restoreFace } from '@/hooks/useLiveBackground'
 import { backgroundUrl } from '@/lib/assetUrls'
-import { clipOf, frameOf, recordCanvas } from '@/lib/clip'
+import { clipOf, frameOf } from '@/lib/clip'
 import { cn } from '@/lib/cn'
-import {
-  drawHeaderFade,
-  drawPhotoHeader,
-  photoDate,
-  PLACE_HEADER,
-  UNIVERSITY_HEADER,
-} from '@/lib/photoHeader'
-import { getSolution } from '@/lib/solution'
+import { drawHeaderFade, drawPhotoHeader, photoDate, PLACE_HEADER, UNIVERSITY_HEADER } from '@/lib/photoHeader'
 import { playSound } from '@/lib/sound'
 import { KioskHeader } from '../shared/KioskHeader'
 
 /** The viewfinder inside the corner brackets, in design px (Figma camera frame). */
 const VIEW_W = 554
 const VIEW_H = 680
-/** vton-live: the viewfinder is the photo's own 2:3 shape, so it shows the photo as it will be, header and all. */
-const PHOTO_VIEW_W = Math.round((VIEW_H * PHOTO_WIDTH) / PHOTO_HEIGHT)
 const STAGE_W = 720 // the design frame's width, to centre the viewfinder in
-/**
- * vton-live: the header's white on the 9:16 scene, behind the visitor: solid from the very top (above the photo's
- * 2:3 middle too, which is cut off later), fading in where the photo's header ends. No scene shows above it, so
- * the clip has no hard edge for the try-on model to smudge into a line.
- */
-function fadeInPhoto(ctx: CanvasRenderingContext2D) {
-  const { width, height } = ctx.canvas
-  const top = (height - (width * PHOTO_HEIGHT) / PHOTO_WIDTH) / 2
-  ctx.save()
-  ctx.fillStyle = '#fff'
-  ctx.fillRect(0, 0, width, top)
-  ctx.translate(0, top)
-  drawHeaderFade(ctx)
-  ctx.restore()
-}
 /** The header's white eases out over this much on the in-the-room photo: no scene fade there, so longer than on the scene. */
 const ROOM_HEADER_FEATHER = 120
-/** If the visitor is still not on the scene when the countdown ends, give up after this long. */
-const SCENE_WAIT_MS = 15_000
-/** vton-batch: as sharp as the camera goes (the Femto Bolt does 4K): the visitor's face in the photo is the camera's. */
+/** As sharp as the camera goes (the Femto Bolt does 4K): the visitor's face in the photo is the camera's. */
 const STILL_CAMERA: MediaTrackConstraints = { width: { ideal: 3840 }, height: { ideal: 2160 } }
-/** vton-live: cut out onto the scene every frame, so 1080p, sharp enough for the still and light enough to keep up. */
-const LIVE_CAMERA: MediaTrackConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 } }
 /** The try-on model's input and output size; the shot goes to it scaled down to this. */
 const MODEL_SIZE = [720, 1280]
 /** It works in 9:16 (and gives back 720x1280), so the shot sent to it has that shape, grey where it runs off the view. */
 const SHOT_ASPECT = 9 / 16
 const VIEW_ASPECT = VIEW_W / VIEW_H
 const BAND_GREY = '#808080'
-/** vton-batch: the dressed still goes to the server's matting model at this width (it works at 1024 anyway). */
+/** The dressed still goes to the server's matting model at this width (it works at 1024 anyway). */
 const MATTE_WIDTH = 1080
-/** vton-live: the scene picture kept for the photo is 9:16 at the photo's width, the photo its middle. */
-const SCENE_HEIGHT = Math.round((PHOTO_WIDTH * 16) / 9)
 const NUMBERS = Array.from({ length: COUNTDOWN_SECONDS }, (_, i) => COUNTDOWN_SECONDS - i) // 5, 4, … 1
 
 /**
- * The camera opens on arrival so visitors see themselves; then the Decart try-on stream dresses them and the
- * browser cuts them out onto the chosen campus scene, live. The shutter unlocks once they are on the scene; it
- * starts the countdown, and the photo is that scene at the end of it: already finished, the server only adds
- * the frame.
- *
- * The ways picked on the home screen while they are compared (lib/solution):
- *
- * vton-batch: the viewfinder is the plain camera (a live cut-out flickered and dropped arms and legs), and at the
- * end of the countdown the camera's own frame goes, as a still clip, to the try-on model's batch job; the dressed
- * visitor then gets their real face back and is cut out onto the scene for the photo.
- *
- * vton-live: the visitor sees themselves on the scene live, and a second of that picture goes to the batch job:
- * it comes back with the scene, so the scene goes back sharp, then the real face and the header.
+ * The camera opens on arrival so visitors see themselves: the viewfinder is the plain camera (a live cut-out
+ * flickered and dropped arms and legs). At the end of the countdown the camera's own frame goes, as a still clip, to
+ * the try-on model's batch job; the dressed visitor then gets their real face back and is cut out onto the scene
+ * for the photo.
  */
 export function CameraScreen() {
   const { t, name } = useI18n()
@@ -94,66 +46,15 @@ export function CameraScreen() {
   const title = scene?.photo_title ?? (scene ? name(scene) : '')
   const header = scene?.photo_title ? UNIVERSITY_HEADER : PLACE_HEADER
   const [live, setLive] = useState(false) // the camera picture is showing
-  const [dressed, setDressed] = useState(false) // the picture in the gown is arriving
-  const [solution] = useState(getSolution) // fixed for this visit, so the stream never starts midway
-  const liveScene = solution === 'vton-live' // on the scene live in the viewfinder, a second of it to the model
-  const gen = solution === 'vton-batch' // a still goes to the model at the shutter
-  const [holding, setHolding] = useState(false) // vton-live: recording the second after the countdown
-  // ponytail: the camera must be mounted upright; a rotated camera would need its frames turned before streaming
-  const camera = liveScene ? LIVE_CAMERA : gen ? STILL_CAMERA : TRYON_CAMERA
-  const { videoRef, stream } = useCamera(true, () => fail('camera'), camera)
-  const dressedRef = useTryOnStream({
-    camera: stream,
-    session,
-    level,
-    item,
-    onError: () => fail('ai'),
-    enabled: solution === 'stream',
-  })
-  const {
-    canvasRef: sceneRef,
-    ready: sceneReady,
-    readyNow: sceneReadyNow,
-    capture: captureScene,
-    still: sceneStill,
-  } = useLiveBackground(
-    liveScene ? videoRef : dressedRef,
-    backgroundUrl(background),
-    liveScene ? live : !gen && dressed,
-    scene?.subject_shift,
-    !liveScene, // vton-live records the canvas, so it stays the right way round; CSS mirrors it on screen
-    liveScene ? fadeInPhoto : undefined, // the photo's fade behind them, live, as it will be in the photo
-  )
-  const viewW = liveScene ? PHOTO_VIEW_W : VIEW_W
-  // vton-live: the photo's header (logo, place, date) over the viewfinder, drawn once; the fade is in the scene
-  const headerRef = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    const canvas = headerRef.current
-    if (liveScene && canvas) void drawPhotoHeader(canvas.getContext('2d')!, header, title, photoDate(), { fade: false })
-  }, [liveScene, header, title])
-  // ponytail: no live scene for vton-batch; bring back useLiveBackground(videoRef, …, live) once the cut-out holds steady
-  // vton-batch still cuts the dressed photo out, so the shutter waits for the segmenter: no paid dressing it can't use
+  // ponytail: the camera must be mounted upright; a rotated camera would need its frames turned before sending
+  const { videoRef } = useCamera(true, () => fail('camera'), STILL_CAMERA)
+  // the dressed photo is cut out too, so the shutter waits for the segmenter: no paid dressing it can't use
   const [segmenterReady, setSegmenterReady] = useState(false)
   const segmenterFailed = useEffectEvent(() => fail('ai'))
   useEffect(() => {
-    if (gen) loadSegmenter().then(() => setSegmenterReady(true), () => segmenterFailed())
-  }, [gen])
+    loadSegmenter().then(() => setSegmenterReady(true), () => segmenterFailed())
+  }, [])
 
-  // Timings in the browser console, next to the [try-on] ones: how long the visitor waits at each step
-  const [openedAt] = useState(() => performance.now())
-  useEffect(() => {
-    if (sceneReady) console.info(`[photo] on the scene ${secondsSince(openedAt)} after the camera screen opened`)
-  }, [sceneReady, openedAt])
-
-  // The countdown also buys time for the stream to connect; if the scene still isn't there, wait for it,
-  // so the photo is always the visitor in the gown on the campus
-  const whenOnScene = async () => {
-    const deadline = performance.now() + SCENE_WAIT_MS
-    while (!sceneReadyNow.current) {
-      if (performance.now() > deadline) throw new Error('try-on scene never arrived')
-      await new Promise((r) => setTimeout(r, 100))
-    }
-  }
   // the model's frame is compressed 720p: the server's upscaler sharpens it; as it is if that fails
   const sharpened = async (frame: ImageBitmap) => {
     const t = performance.now()
@@ -178,47 +79,6 @@ export function CameraScreen() {
         return undefined
       })
 
-  // vton-live: a clip of the visitor on the scene to the try-on model's batch job; the scene comes back with them,
-  // soft, so it goes back sharp from `onScene`, then the face from it and the header. Two photos, for comparing:
-  // in the middle of the scene (cut out and put on it again), and where they stood, as they saw it
-  const dressOnScene = async (onScene: HTMLCanvasElement, clip: Blob): Promise<[Blob, Blob]> => {
-    const t1 = performance.now()
-    const dressing = await dressPhoto(clip, { session, level, item, solution })
-    const dressedFrame = await sharpened(await frameOf(dressing.photo))
-    const t2 = performance.now()
-    await nextFrame()
-    // the model's 720p video softens everything: the scene goes back sharp, then the face from the camera
-    const sharp = await keepSharpScene(onScene, dressedFrame, await matteFor(asCanvas(dressedFrame))).catch((e) => {
-      console.error('sharp scene failed', e)
-      return dressedFrame
-    })
-    await nextFrame()
-    const restored = await restoreFace(onScene, sharp instanceof HTMLCanvasElement ? await createImageBitmap(sharp) : sharp).catch(
-      (e) => {
-        console.error('face restore failed', e)
-        return sharp
-      },
-    )
-    const { steps } = dressing
-    await nextFrame()
-    const photo = photoSlice(restored)
-    const t3 = performance.now()
-    const finish = (ctx: CanvasRenderingContext2D) => drawPhotoHeader(ctx, header, title, photoDate(), { fade: false })
-    const centred = compositePhoto(photo, backgroundUrl(background), finish, scene?.subject_shift, {
-      behind: drawHeaderFade,
-      matte: await matteFor(photo),
-      centre: false, // as the camera saw them, not moved to the middle of the scene
-    })
-    const asShot = asCanvas(photo, true) // a copy: the centred one still cuts the visitor out of `photo`
-    await finish(asShot.getContext('2d')!) // its fade is in the scene already, behind them
-    const photos = await Promise.all([centred, jpegOf(asShot)])
-    if (steps) saveSteps(steps, photos) // debug: result1 in the middle, result2 where they stood
-    console.info(
-      `[photo] dressed in ${secondsSince(t1, t2)}, scene and face back in ${secondsSince(t2, t3)}, both photos in ${secondsSince(t3)}`,
-    )
-    return photos
-  }
-
   const makePhoto = async (video: HTMLVideoElement) => {
     const t0 = performance.now()
     // ponytail: debug only, delete once the loading freeze is found: every stretch the main thread (and so the orb) was stuck
@@ -232,7 +92,7 @@ export function CameraScreen() {
     // frame: about twice the pixels across for the gown and face that the whole viewfinder in grey bands gave it
     const { canvas: shot, rect } = aroundVisitor(view, await personBox(view).catch(() => null))
     // the try-on model takes video only, so a still clip goes, and a frame of the dressed one comes back
-    const dressing = await dressPhoto(await clipOf(modelSized(shot)), { session, level, item, solution })
+    const dressing = await dressPhoto(await clipOf(modelSized(shot)), { session, level, item })
     const dressedShot = await sharpened(await frameOf(dressing.photo))
     const t1 = performance.now()
     await nextFrame()
@@ -274,44 +134,15 @@ export function CameraScreen() {
     return photo
   }
 
-  const { count, start } = useCountdown(COUNTDOWN_SECONDS, async () => {
+  const { count, start } = useCountdown(COUNTDOWN_SECONDS, () => {
     playSound('shutter')
-    if (liveScene) {
-      // the sharp still and the second of video are both taken here, before the screen (and the scene) closes
-      try {
-        // the header's fade behind the visitor, where the photo's top will be; keepSharpScene keeps it off them
-        const onScene = sceneStill(PHOTO_WIDTH, SCENE_HEIGHT, fadeInPhoto)
-        setHolding(true)
-        const clip = await recordCanvas(sceneRef.current!)
-        shoot(dressOnScene(onScene, clip))
-      } catch (e) {
-        console.error('scene capture failed', e)
-        fail('ai')
-      }
-      return
-    }
-    if (gen) {
-      // the shot is grabbed right away, before the screen (and the camera) closes for the generating screen
-      if (videoRef.current) shoot(makePhoto(videoRef.current))
-      else fail('camera')
-      return
-    }
-    try {
-      const t0 = performance.now()
-      await whenOnScene()
-      const t1 = performance.now()
-      const photo = await captureScene((ctx) => drawPhotoHeader(ctx, header, title, photoDate()))
-      console.info(`[photo] countdown over: waited ${secondsSince(t0, t1)} for the scene, captured in ${secondsSince(t1)}`)
-      shoot(photo)
-    } catch (e) {
-      console.error('capture failed', e)
-      fail('ai')
-    }
+    // the shot is grabbed right away, before the screen (and the camera) closes for the generating screen
+    if (videoRef.current) shoot(makePhoto(videoRef.current))
+    else fail('camera')
   })
   const counting = count !== null
-  // "Let's Play !" and the shutter only once the visitor stands on the scene in the gown, so nobody shoots early;
-  // vton-batch makes the photo from the camera itself, so there it needs the camera and the segmenter
-  const canShoot = gen ? live && segmenterReady : sceneReady // vton-live: once they are on the scene
+  // "Let's Play !" and the shutter only once the camera and the segmenter are ready, so nobody shoots early
+  const canShoot = live && segmenterReady
   const phase = canShoot ? 'play' : 'getReady'
 
   return (
@@ -319,11 +150,10 @@ export function CameraScreen() {
       <p className="mt-7.5 text-lg font-semibold text-primary">{t.camera.subtitle}</p>
       <p className="mt-1 text-sm text-primary/70">{t.camera.tip}</p>
 
-      {/* Viewfinder inside corner brackets. The raw camera shows first (mirrored like a selfie) and feeds the
-          try-on stream; the dressed video is hidden, only the source for the scene canvas the visitor sees. */}
+      {/* Viewfinder inside corner brackets: the raw camera, mirrored like a selfie. */}
       <div
         className="absolute top-84 overflow-hidden rounded-[18px]"
-        style={{ width: viewW, height: VIEW_H, left: (STAGE_W - viewW) / 2 }}
+        style={{ width: VIEW_W, height: VIEW_H, left: (STAGE_W - VIEW_W) / 2 }}
       >
         <video
           ref={videoRef}
@@ -336,51 +166,19 @@ export function CameraScreen() {
             live ? 'opacity-100' : 'opacity-0',
           )}
         />
-
-        <video ref={dressedRef} autoPlay muted playsInline onPlaying={() => setDressed(true)} className="hidden" />
-        {/* vton-live: the scene in the try-on model's 9:16 shape, unmirrored for recording, mirrored here by CSS */}
-        <canvas
-          ref={sceneRef}
-          width={liveScene ? MODEL_SIZE[0] : VIEW_W * 1.5}
-          height={liveScene ? MODEL_SIZE[1] : VIEW_H * 1.5}
-          className={cn(
-            'absolute inset-0 size-full transition-opacity duration-700',
-            liveScene && '-scale-x-100 object-cover',
-            sceneReady ? 'opacity-100' : 'opacity-0',
-          )}
-        />
-        {liveScene && (
-          <canvas
-            ref={headerRef}
-            width={PHOTO_WIDTH}
-            height={PHOTO_HEIGHT}
-            aria-hidden="true"
-            className={cn('pointer-events-none absolute inset-0 size-full', sceneReady ? 'opacity-100' : 'opacity-0')}
-          />
-        )}
-        {holding && (
-          <p className="absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 animate-breathe rounded-pill bg-white/85 px-7 py-3 text-2xl font-black text-primary motion-reduce:animate-none">
-            {t.camera.hold}
-          </p>
-        )}
-        {solution === 'stream' && live && !sceneReady && (
-          <p className="absolute inset-x-0 bottom-5 mx-auto w-fit animate-breathe rounded-pill bg-white/85 px-5 py-2 text-base font-semibold text-primary motion-reduce:animate-none">
-            {t.camera.dressing}
-          </p>
-        )}
         {counting && <div className="absolute inset-0 bg-primary/25" />}
         {/* inside the viewfinder, so numbers past its edges are clipped rather than drifting over the header */}
         {counting && <CountdownDrum count={count} />}
       </div>
-      <CornerBrackets width={viewW} />
+      <CornerBrackets width={VIEW_W} />
 
       {/* keyed by phase, so each new phase replays its entrance; once the numbers roll they speak for themselves */}
-      {!counting && !holding && (
+      {!counting && (
         <p
           key={phase}
           className={cn(
             'absolute z-10 text-[32px] font-black text-primary drop-shadow-[0_1px_6px_rgb(255_255_255/0.7)] motion-reduce:animate-none',
-            liveScene ? 'top-112' : 'top-98', // vton-live: below the photo header shown in the viewfinder
+            'top-98',
             phase === 'getReady' ? 'animate-breathe' : 'animate-pop-in',
           )}
         >
@@ -407,7 +205,7 @@ export function CameraScreen() {
               playSound('countdown')
               start()
             }}
-            disabled={counting || holding}
+            disabled={counting}
             className="relative animate-sheet-in motion-reduce:animate-none"
           />
         )}
@@ -419,7 +217,7 @@ export function CameraScreen() {
 const secondsSince = (from: number, to = performance.now()) => `${((to - from) / 1000).toFixed(1)}s`
 
 /**
- * vton-batch: the camera's current frame, mirrored, at the camera's full resolution: exactly what the viewfinder
+ * The camera's current frame, mirrored, at the camera's full resolution: exactly what the viewfinder
  * shows (the camera's middle at full height), so the photo matches the pose the visitor saw. Drawn at once, before
  * the screen (and the camera) closes.
  */
@@ -563,15 +361,6 @@ const jpegOf = (canvas: HTMLCanvasElement, quality = 0.92): Promise<Blob> =>
   new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('shot failed'))), 'image/jpeg', quality),
   )
-
-/** vton-live: the photo out of the dressed 9:16 scene picture, its 2:3 middle at the photo's size. */
-function photoSlice(image: ImageBitmap | HTMLCanvasElement) {
-  const canvas = document.createElement('canvas')
-  Object.assign(canvas, { width: PHOTO_WIDTH, height: PHOTO_HEIGHT })
-  const h = (image.width * PHOTO_HEIGHT) / PHOTO_WIDTH
-  canvas.getContext('2d')!.drawImage(image, 0, (image.height - h) / 2, image.width, h, 0, 0, PHOTO_WIDTH, PHOTO_HEIGHT)
-  return canvas
-}
 
 /** Four rounded corner brackets around the viewfinder, as in the design. */
 function CornerBrackets({ width }: { width: number }) {

@@ -23,7 +23,7 @@ from app.dependencies import (
 )
 from app.schemas import PhotoOut
 from app.services.dress import dress
-from app.services.frame import STEPS_DIRS, new_steps_folder
+from app.services.frame import new_steps_folder
 
 router = APIRouter(tags=["photos"])
 log = logging.getLogger("uvicorn.error")
@@ -44,7 +44,6 @@ def dress_photo(
     storage: StorageDep,
     catalog: CatalogDep,
     api_key: DecartKeyDep,
-    solution: Annotated[str, Form()] = "",
 ) -> Response:
     """A one-second MP4 clip of the visitor dressed in the chosen outfit by Decart's try-on model (a batch job);
     the kiosk takes a frame of it, puts the real face back and finishes the photo."""
@@ -54,8 +53,7 @@ def dress_photo(
         dressed = dress(api_key, clip, outfit.read_bytes(), level, item)
     headers = {}
     if settings.save_steps:  # what the model made; the kiosk adds the finished photos to the same folder
-        about = f"solution: {solution} ({STEPS_DIRS.get(solution, 'other')})\noutfit: {level}/{item}"
-        headers["X-Steps"] = folder = new_steps_folder(settings.data_dir, solution, about)
+        headers["X-Steps"] = folder = new_steps_folder(settings.data_dir, f"outfit: {level}/{item}")
         (settings.data_dir / "steps" / folder / "dressed.mp4").write_bytes(dressed)
     return Response(dressed, media_type="video/mp4", headers=headers)
 

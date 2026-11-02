@@ -1,6 +1,5 @@
 export { BackgroundCard } from './BackgroundCard/BackgroundCard'
 export { Button } from './Button/Button'
-export { Dropdown } from './Dropdown/Dropdown'
 export { FacultyTile } from './FacultyTile/FacultyTile'
 export { HandCursor } from './HandCursor/HandCursor'
 export { Header } from './Header/Header'

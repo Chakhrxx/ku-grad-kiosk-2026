@@ -27,11 +27,10 @@ def test_without_a_frame_the_photo_passes_through(tmp_path: Path):
     assert out.size == (90, 160) and out.getpixel((45, 80))[1] > 100
 
 
-def test_steps_folders_are_numbered_per_solution(tmp_path: Path):
+def test_steps_folders_are_numbered(tmp_path: Path):
     from app.services.frame import new_steps_folder
 
-    assert new_steps_folder(tmp_path, "vton-batch", "outfit: bachelor/engineering") == "no-preview-bg/01"
-    assert new_steps_folder(tmp_path, "vton-batch", "") == "no-preview-bg/02"
-    assert new_steps_folder(tmp_path, "vton-live", "") == "preview-bg/01"
-    info = (tmp_path / "steps" / "no-preview-bg" / "01" / "info.txt").read_text()
+    assert new_steps_folder(tmp_path, "outfit: bachelor/engineering") == "shots/01"
+    assert new_steps_folder(tmp_path, "") == "shots/02"
+    info = (tmp_path / "steps" / "shots" / "01" / "info.txt").read_text()
     assert "outfit: bachelor/engineering" in info
