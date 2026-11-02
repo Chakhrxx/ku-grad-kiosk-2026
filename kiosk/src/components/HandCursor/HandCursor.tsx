@@ -22,8 +22,8 @@ const TAPPABLE = "button:not(:disabled), [role='button'], [role='menuitemradio']
 /** Half the box the cursor is drawn in (88px). */
 const RADIUS = 44
 const CIRCLE = 2 * Math.PI * 40
-/** Not the mouse cursor's teal: an open amber ring, so a hand and a mouse are never mistaken for each other. */
-const COLOR = '#f59e0b'
+/** The mouse cursor's teal (global.css); the hand's is an open ring, the mouse's a dot. */
+const COLOR = '#006c67'
 
 /**
  * For a kiosk with no touch and no mouse: the camera finds the visitor's index finger and a cursor follows it; holding
