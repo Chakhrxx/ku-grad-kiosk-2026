@@ -59,7 +59,7 @@ jobs:
           gcloud run deploy "$SERVICE" --source backend --project "${{ vars.GCP_PROJECT }}" --region "$REGION"
           --cpu 4 --memory 4Gi --concurrency 10 --max-instances 5 --timeout 60
           --set-secrets DECART_API_KEY=decart-api-key:latest
-          --set-env-vars PUBLIC_URL=${{ vars.PUBLIC_URL }},STORAGE_BUCKET=${{ vars.GCP_PROJECT }}.firebasestorage.app,SAVE_STEPS=false
+          --set-env-vars PUBLIC_URL=${{ vars.PUBLIC_URL }},STORAGE_BUCKET=ku-cloth-interactive-photos,SAVE_STEPS=false
           --allow-unauthenticated --quiet
 
       - name: Build the kiosk
