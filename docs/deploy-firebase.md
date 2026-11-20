@@ -35,7 +35,7 @@ backend **ไม่เบาแล้ว**: ตัดคนและขยาย
 | **Cloud Run** | FastAPI backend (container) รวมโมเดล IS-Net + Real-ESRGAN ใน image | request-based billing จ่ายตอนมี request + ค่า idle ของ min instance |
 | **Artifact Registry** | เก็บ container image ของ backend | สร้างอัตโนมัติตอน `gcloud run deploy --source` |
 | **Secret Manager** | `DECART_API_KEY` | mount เป็น env ให้ Cloud Run ห้ามใส่ใน image / git |
-| **Cloud Storage** (bucket ของ Firebase Storage) | รูปที่ถ่าย `photos/<id>.jpg` | private, lifecycle rule **ลบเมื่ออายุ 7 วัน** (PDPA) |
+| **Cloud Storage** (bucket `ku-cloth-interactive-photos`) | รูปที่ถ่าย `photos/<id>.jpg` | private, lifecycle rule **ลบเมื่ออายุ 7 วัน** (PDPA) |
 | **Firestore** | `consents/{session}`, `photos/{id}` (เวลาสร้าง) ไว้นับ MAX_PER_DAY | ตั้ง TTL policy ลบ doc รูปหลัง 7 วันคู่กับ bucket |
 | **Firebase Authentication** | login ตู้ (1 account ต่อตู้) ให้เฉพาะตู้เรียก `/api` ที่เสียเงินได้ (`/api/dress`, `/api/generate`, ...) | กันคนนอกยิง API ให้เราเสียเงิน Decart (หัวข้อ 4.3) |
 | **Cloud Logging / Monitoring** | log, alert เมื่อ 5xx หรือ latency สูง | มีให้อยู่แล้ว |
@@ -88,8 +88,9 @@ Region: **asia-southeast1 (Singapore)** ทุกตัว — ใกล้ไ�
 
 1. ~~**Storage → Cloud Storage**~~ เสร็จแล้ว: ตั้ง `STORAGE_BUCKET` แล้ว [storage.py](../backend/app/services/storage.py) (`BucketStorage`) เก็บรูปที่ `photos/` และ consent ที่ `consents/` ใน bucket ไม่ตั้งก็ลง disk เหมือนเดิม (ใช้ตอน dev) ไม่ใช้ Firestore
    - id รูปขึ้นต้นด้วยวันที่ (UTC) ให้นับรูป 24 ชม. ได้ด้วยการ list แค่ 2 วันล่าสุด
-   - bucket `ku-cloth-interactive.firebasestorage.app` มี lifecycle ลบเมื่ออายุ 7 วัน ทั้ง `photos/` และ `consents/` (ถ้า DPO ให้เก็บ consent นานกว่า ต้องจำกัด rule ไว้ที่ `photos/`)
-   - bucket อยู่ US-EAST1 ส่วน Cloud Run อยู่ Singapore: ทุกครั้งที่อ่าน/เขียนรูปไกลขึ้นราว 0.2 วิ
+   - bucket `ku-cloth-interactive-photos` (asia-southeast1 เดียวกับ Cloud Run, private) มี lifecycle ลบเมื่ออายุ 7 วัน ทั้ง `photos/` และ `consents/` (ถ้า DPO ให้เก็บ consent นานกว่า ต้องจำกัด rule ไว้ที่ `photos/`)
+   - service account ของ Cloud Run (`<เลข project>-compute@developer.gserviceaccount.com`) ต้องมี `roles/storage.objectUser` บน bucket นี้ ไม่งั้นเขียนรูปไม่ได้ (500)
+   - ไม่ใช้ default bucket ของ Firebase (`ku-cloth-interactive.firebasestorage.app`) แล้ว ตัวนั้นถูกลบไป ดูรูปที่ Cloud Storage console ไม่ใช่หน้า Storage ของ Firebase
 2. ~~**Dockerfile** สำหรับ backend~~ เสร็จแล้ว: [backend/Dockerfile](../backend/Dockerfile) ใส่ `assets/`, `models/` และโหลด model ตัดคน (IS-Net 179MB) เข้า image ตอน build
 3. **กันคนนอกยิง API** — ตอนนี้ใครก็ได้ที่รู้ URL ขอ token Decart ได้ = เสียเงินเรา
    - ตู้ login Firebase Auth (account ต่อตู้ ตั้งครั้งเดียวตอนติดตั้ง) ส่ง ID token มากับทุก `/api` ที่เสียเงิน: `/api/consent`, `/api/dress` (Decart job ละครั้ง), `/api/matte`, `/api/upscale` (CPU), `/api/generate`
