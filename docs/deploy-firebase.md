@@ -35,7 +35,7 @@ backend **ไม่เบาแล้ว**: ตัดคนและขยาย
 | **Cloud Run** | FastAPI backend (container) รวมโมเดล IS-Net + Real-ESRGAN ใน image | request-based billing จ่ายตอนมี request + ค่า idle ของ min instance |
 | **Artifact Registry** | เก็บ container image ของ backend | สร้างอัตโนมัติตอน `gcloud run deploy --source` |
 | **Secret Manager** | `DECART_API_KEY` | mount เป็น env ให้ Cloud Run ห้ามใส่ใน image / git |
-| **Cloud Storage** (bucket ของ Firebase Storage) | รูปที่ถ่าย `photos/<id>.jpg` | private, lifecycle rule **ลบเมื่ออายุ 7 วัน** (PDPA) |
+| **Cloud Storage** (bucket `ku-cloth-interactive-photos`) | รูปที่ถ่าย `photos/<id>.jpg` | private, lifecycle rule **ลบเมื่ออายุ 7 วัน** (PDPA) |
 | **Firestore** | `consents/{session}`, `photos/{id}` (เวลาสร้าง) ไว้นับ MAX_PER_DAY | ตั้ง TTL policy ลบ doc รูปหลัง 7 วันคู่กับ bucket |
 | **Firebase Authentication** | login ตู้ (1 account ต่อตู้) ให้เฉพาะตู้เรียก `/api` ที่เสียเงินได้ (`/api/dress`, `/api/generate`, ...) | กันคนนอกยิง API ให้เราเสียเงิน Decart (หัวข้อ 4.3) |
 | **Cloud Logging / Monitoring** | log, alert เมื่อ 5xx หรือ latency สูง | มีให้อยู่แล้ว |
